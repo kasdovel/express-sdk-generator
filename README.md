@@ -91,6 +91,29 @@ The client transport is pluggable (defaults to native `fetch`); pass `{ fetch }`
 your own. Responses are always validated, so server/SDK drift throws instead of silently
 mis-typing.
 
+### Nested routers
+
+`createRoute` records the literal path you pass it — it can't see where a router is later
+mounted. For routers mounted under a prefix, use a prefix-aware `router` so the registry gets
+the fully-qualified path while Express still routes by the local path:
+
+```ts
+import { router } from '@sdkgen/core';
+
+const accounts = router('/accounts');
+accounts.route({ method: 'get', path: '/', operationId: 'listAccounts', responses: { 200: AccountList }, handler });
+
+const admins = accounts.router('/admins');       // nested router, mounted under /admins
+admins.route({ method: 'get', path: '/:id', operationId: 'getAdmin', request: { params: IdParam }, responses: { 200: Admin }, handler });
+
+accounts.mount(app);   // mounts the /accounts router (and its /admins sub-router)
+// spec paths: /accounts and /accounts/admins/{id}
+```
+
+Routers nest to any depth; the prefix is written once per level. The raw Express router is
+hidden — mount with `.mount(app)`. Plain `createRoute` is the special case of a router at the
+app root, so a root-mounted router needs no `router(...)` wrapper.
+
 ### Live docs in your own app
 
 ```ts

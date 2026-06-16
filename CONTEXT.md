@@ -15,6 +15,13 @@ A Route as it appears in the generated OpenAPI document and SDK, identified by i
 `operationId`. One Route becomes exactly one Operation.
 _Avoid_: Method, action
 
+**Router**:
+A prefix-aware container that owns an Express router mounted at a known path. Routes added
+to it are recorded under the full accumulated path; Routers nest. This is what keeps spec
+and SDK paths correct when a router is mounted under a prefix. Distinct from a raw
+`express.Router`, which is unaware of where it will be mounted.
+_Avoid_: Group, scope, namespace
+
 **Registry**:
 The in-memory collection of Routes, holding the real Zod schemas. The single source of
 truth every Artifact is generated from.

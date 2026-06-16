@@ -6,6 +6,7 @@ import {
   createRegistry,
   buildDocument,
   validateRequest,
+  router as apiRouter,
 } from "../src/index.js";
 
 describe("createRoute + registry", () => {
@@ -71,6 +72,36 @@ describe("buildDocument", () => {
     };
     expect(doc.openapi).toBe("3.1.0");
     expect(doc.paths["/users/{id}"]!.post).toBeDefined();
+  });
+});
+
+describe("router (prefix-aware)", () => {
+  it("records fully-qualified paths for nested routers", () => {
+    const registry = createRegistry();
+    const accounts = apiRouter("/accounts", { registry });
+    accounts.route({
+      method: "get",
+      path: "/",
+      operationId: "listAccounts",
+      responses: { 200: z.array(z.string()) },
+      handler: (_req, res) => {
+        res.json([]);
+      },
+    });
+    const admins = accounts.router("/admins");
+    admins.route({
+      method: "get",
+      path: "/:id",
+      operationId: "getAccountAdmin",
+      request: { params: z.object({ id: z.string() }) },
+      responses: { 200: z.string() },
+      handler: (_req, res) => {
+        res.json("ok");
+      },
+    });
+
+    const paths = registry.routes.map((r) => r.path);
+    expect(paths).toEqual(["/accounts", "/accounts/admins/:id"]);
   });
 });
 

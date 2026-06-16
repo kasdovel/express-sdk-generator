@@ -7,6 +7,9 @@ export type {
   ResponseInput,
 } from './createRoute.js';
 
+export { router, ApiRouter } from './router.js';
+export type { ApiRouterOptions } from './router.js';
+
 export { Registry, registry, createRegistry } from './registry.js';
 
 export { validateRequest } from './validate.js';
@@ -23,7 +26,7 @@ export type { DocumentInfo, OpenApiVersion } from './document.js';
 export { serveDocs } from './serveDocs.js';
 export type { ServeDocsOptions } from './serveDocs.js';
 
-export { toOpenApiPath, pathParamNames } from './path.js';
+export { toOpenApiPath, pathParamNames, joinPaths } from './path.js';
 
 export type {
   Method,

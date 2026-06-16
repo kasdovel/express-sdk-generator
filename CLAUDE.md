@@ -74,6 +74,11 @@ Key invariants to preserve when editing:
 - **The Entry must be side-effect-free** (no `app.listen`, no DB connect). The CLI imports it
   in-process via jiti. The example's pattern: `src/openapi.ts` imports `./routes.js` (to
   populate the global registry) then re-exports `registry` from `@sdkgen/core`.
+- **`createRoute` records the literal path; it can't see mount prefixes.** For a router
+  mounted under a prefix, use the prefix-aware `router(prefix)` (`core/router.ts`, type
+  `ApiRouter`) so the registry gets the full path while Express routes by the local path —
+  otherwise nested routers emit wrong URLs in the spec/SDK. `createRoute` is the root-mount
+  special case. Both share `registerRoute` in `core/createRoute.ts` (see ADR-0004).
 
 ### SDK generation (the non-obvious part)
 

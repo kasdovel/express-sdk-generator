@@ -3,12 +3,14 @@ import type { Express } from 'express';
 import { pathToFileURL } from 'node:url';
 import { registry, serveDocs } from '@sdkgen/core';
 import { router } from './routes.js';
+import { accounts } from './admin.js';
 
 /** Build the Express app (no listen) — used by both `dev` and tests. */
 export function createApp(): Express {
   const app = express();
   app.use(express.json());
   app.use(router);
+  accounts.mount(app); // mounts the /accounts router (and its /admins sub-router)
   return app;
 }
 

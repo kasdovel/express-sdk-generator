@@ -81,10 +81,29 @@ export function createRoute<
   H extends z.ZodTypeAny | undefined = undefined,
 >(router: Router, config: CreateRouteConfig<P, Q, B, H>): Router {
   const reg = config.registry ?? globalRegistry;
+  return registerRoute(router, config, reg, config.path);
+}
 
+/**
+ * Shared registration core. `expressPath` is what the route is mounted at on
+ * `router` (local, relative to where `router` is mounted); `registryPath` is the
+ * absolute path recorded in the spec. They differ when a router is nested under
+ * a prefix — see `router` / `ApiRouter`.
+ */
+export function registerRoute<
+  P extends z.ZodTypeAny | undefined = undefined,
+  Q extends z.ZodTypeAny | undefined = undefined,
+  B extends z.ZodTypeAny | undefined = undefined,
+  H extends z.ZodTypeAny | undefined = undefined,
+>(
+  router: Router,
+  config: CreateRouteConfig<P, Q, B, H>,
+  registry: Registry,
+  registryPath: string,
+): Router {
   const route: RouteDef = {
     method: config.method,
-    path: config.path,
+    path: registryPath,
     operationId: config.operationId,
     summary: config.summary,
     description: config.description,
@@ -92,18 +111,14 @@ export function createRoute<
     request: config.request,
     responses: normalizeResponses(config.responses),
   };
-  reg.add(route);
+  registry.add(route);
 
   const validator = validateRequest(config.request, config.validation);
 
   const handler = config.handler;
   const wrapped = (req: Request, res: Response, next: NextFunction): void => {
     try {
-      const out = handler(
-        req as TypedRequest<P, Q, B, H>,
-        res,
-        next,
-      );
+      const out = handler(req as TypedRequest<P, Q, B, H>, res, next);
       if (out instanceof Promise) out.catch(next);
     } catch (err) {
       next(err);

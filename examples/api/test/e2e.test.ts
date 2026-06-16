@@ -36,6 +36,14 @@ describe("generated SDK against the example app", () => {
     expect(await client.listUsers()).toHaveLength(1);
   });
 
+  it("reaches a nested router at its fully-qualified path", async () => {
+    // /accounts/admins/:id is served by a sub-router mounted under /accounts.
+    const id = "11111111-1111-4111-8111-111111111111";
+    const admin = await client.getAccountAdmin({ params: { id } });
+    expect(admin).toMatchObject({ id, name: "Admin" });
+    expect(await client.listAccounts()).toEqual([]);
+  });
+
   it("throws ApiError(404) for a missing user", async () => {
     await expect(
       client.getUser({ params: { id: "does-not-exist" } }),
