@@ -63,7 +63,7 @@ import { defineConfig } from '@sdkgen/cli';
 export default defineConfig({
   entry: 'src/openapi.ts',
   spec: { out: 'openapi.json', openapi: '3.1', title: 'My API', version: '1.0.0', yaml: true },
-  docs: { out: 'docs/index.html', ui: 'swagger' },
+  docs: { out: 'docs/index.html', ui: 'swagger', offline: false },
   sdk:  { out: 'sdk', baseUrl: 'https://api.example.com', className: 'ApiClient' },
 });
 ```
@@ -76,6 +76,11 @@ sdkgen gen spec     # just the OpenAPI spec
 sdkgen gen sdk      # just the SDK
 sdkgen serve        # live docs preview
 ```
+
+The generated docs HTML always inlines the OpenAPI spec. By default the Swagger/Redoc UI
+assets load from a CDN (unpkg/jsdelivr) at runtime. Set `docs.offline: true` to vendor those
+assets into the file as well, producing a single air-gapped page that needs no public
+internet — at the cost of a larger HTML file.
 
 ### Generated SDK
 

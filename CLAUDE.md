@@ -57,7 +57,8 @@ CLI loads the user's side-effect-free Entry via jiti  [cli/load.ts]
    → Registry is now populated
    → buildDocument(registry)  [core/document.ts]  → OpenAPI doc (canonical artifact)
         ├─ emitSpec  → openapi.json / .yaml
-        ├─ emitDocs  → self-contained Swagger/Redoc HTML (spec inlined, UI from CDN)
+        ├─ emitDocs  → Swagger/Redoc HTML (spec always inlined; UI from CDN, or
+        │              vendored inline when `docs.offline`)
         └─ emitSdk   → typed client (see below)
 ```
 

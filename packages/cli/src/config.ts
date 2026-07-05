@@ -19,6 +19,12 @@ export interface DocsConfig {
   out?: string;
   ui?: 'swagger' | 'redoc';
   title?: string;
+  /**
+   * Inline the UI assets (JS/CSS) into the HTML instead of loading them from a
+   * CDN. Produces a fully offline, air-gapped page at the cost of a larger file.
+   * Default `false` (assets loaded from unpkg/jsdelivr at runtime).
+   */
+  offline?: boolean;
 }
 
 export interface SdkConfig {
