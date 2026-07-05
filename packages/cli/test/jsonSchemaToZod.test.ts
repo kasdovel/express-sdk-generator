@@ -22,6 +22,14 @@ describe('toZod', () => {
     expect(toZod({ type: 'array', items: { type: 'string' } }, ctx)).toBe('z.array(z.string())');
   });
 
+  it('handles oneOf/anyOf unions and collapses a single member', () => {
+    expect(
+      toZod({ oneOf: [{ type: 'string' }, { type: 'number' }] }, ctx),
+    ).toBe('z.union([z.string(), z.number()])');
+    // A one-member union is not wrapped in z.union.
+    expect(toZod({ anyOf: [{ type: 'string' }] }, ctx)).toBe('z.string()');
+  });
+
   it('handles enum, nullable, and $ref', () => {
     expect(toZod({ enum: ['a', 'b'] }, ctx)).toBe("z.enum([\"a\", \"b\"])");
     expect(toZod({ type: ['string', 'null'] }, ctx)).toBe('z.string().nullable()');

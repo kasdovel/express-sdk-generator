@@ -50,3 +50,12 @@ _Avoid_: Client library, bindings, stubs
 Any divergence between what the API actually does and what the Spec/SDK describe. The
 design goal is structural impossibility of drift — one declaration feeds everything.
 _Avoid_: Mismatch, skew, staleness
+
+**Transport**:
+A strategy the SDK consumer supplies to control how a request is carried to the server and
+back — it reports the response's status and parsed data, not raw bytes. Selectable per HTTP
+method, with a client-wide default. A Transport changes *delivery* (which HTTP mechanism,
+caching, retry), never *meaning*: the SDK still validates every response and still turns a
+non-2xx status into the failure it raises. A Transport reports HTTP error statuses as data;
+only a true network failure throws out of it.
+_Avoid_: Fetcher, adapter, client, driver
