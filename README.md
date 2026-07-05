@@ -9,10 +9,10 @@ generated SDK (which validates responses with the same schemas).
 
 ## Packages
 
-| Package | Role | Install as |
-|---------|------|-----------|
-| [`@sdkgen/core`](packages/core) | Runtime: `createRoute`, registry, request validation, `serveDocs` | `dependency` |
-| [`@sdkgen/cli`](packages/cli) | Generator CLI (`sdkgen`) | `devDependency` |
+| Package                         | Role                                                              | Install as      |
+| ------------------------------- | ----------------------------------------------------------------- | --------------- |
+| [`@sdkgen/core`](packages/core) | Runtime: `createRoute`, registry, request validation, `serveDocs` | `dependency`    |
+| [`@sdkgen/cli`](packages/cli)   | Generator CLI (`sdkgen`)                                          | `devDependency` |
 
 ## Usage
 
@@ -48,7 +48,7 @@ request), and types the handler.
 
 ```ts
 // src/openapi.ts
-import './routes.js';            // populates the registry
+import './routes.js'; // populates the registry
 export { registry } from '@sdkgen/core';
 ```
 
@@ -64,7 +64,7 @@ export default defineConfig({
   entry: 'src/openapi.ts',
   spec: { out: 'openapi.json', openapi: '3.1', title: 'My API', version: '1.0.0', yaml: true },
   docs: { out: 'docs/index.html', ui: 'swagger', offline: false },
-  sdk:  { out: 'sdk', baseUrl: 'https://api.example.com', className: 'ApiClient' },
+  sdk: { out: 'sdk', baseUrl: 'https://api.example.com', className: 'ApiClient' },
 });
 ```
 
@@ -130,12 +130,25 @@ the fully-qualified path while Express still routes by the local path:
 import { router } from '@sdkgen/core';
 
 const accounts = router('/accounts');
-accounts.route({ method: 'get', path: '/', operationId: 'listAccounts', responses: { 200: AccountList }, handler });
+accounts.route({
+  method: 'get',
+  path: '/',
+  operationId: 'listAccounts',
+  responses: { 200: AccountList },
+  handler,
+});
 
-const admins = accounts.router('/admins');       // nested router, mounted under /admins
-admins.route({ method: 'get', path: '/:id', operationId: 'getAdmin', request: { params: IdParam }, responses: { 200: Admin }, handler });
+const admins = accounts.router('/admins'); // nested router, mounted under /admins
+admins.route({
+  method: 'get',
+  path: '/:id',
+  operationId: 'getAdmin',
+  request: { params: IdParam },
+  responses: { 200: Admin },
+  handler,
+});
 
-accounts.mount(app);   // mounts the /accounts router (and its /admins sub-router)
+accounts.mount(app); // mounts the /accounts router (and its /admins sub-router)
 // spec paths: /accounts and /accounts/admins/{id}
 ```
 

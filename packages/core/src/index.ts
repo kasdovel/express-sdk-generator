@@ -28,9 +28,4 @@ export type { ServeDocsOptions } from './serveDocs.js';
 
 export { toOpenApiPath, pathParamNames, joinPaths } from './path.js';
 
-export type {
-  Method,
-  RouteDef,
-  RequestSchemas,
-  ResponseDef,
-} from './types.js';
+export type { Method, RouteDef, RequestSchemas, ResponseDef } from './types.js';

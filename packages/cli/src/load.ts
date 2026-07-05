@@ -16,9 +16,7 @@ function pickDefault<T>(mod: Record<string, unknown>): T {
 
 /** Load and validate a config module (TS/JS/JSON) via jiti. */
 export async function loadConfig(configPath: string): Promise<SdkgenConfig> {
-  const mod = await jiti.import<Record<string, unknown>>(
-    pathToFileURL(configPath).href,
-  );
+  const mod = await jiti.import<Record<string, unknown>>(pathToFileURL(configPath).href);
   const config = pickDefault<SdkgenConfig>(mod);
   if (!config || typeof config.entry !== 'string') {
     throw new Error(
@@ -41,14 +39,9 @@ function looksLikeRegistry(value: unknown): value is Registry {
  * Import the entry module and return the populated Registry. The entry must be
  * side-effect-free (no `app.listen`, no DB connect) — it is imported in-process.
  */
-export async function loadRegistry(
-  config: SdkgenConfig,
-  configPath: string,
-): Promise<Registry> {
+export async function loadRegistry(config: SdkgenConfig, configPath: string): Promise<Registry> {
   const entryPath = resolve(dirname(configPath), config.entry);
-  const mod = await jiti.import<Record<string, unknown>>(
-    pathToFileURL(entryPath).href,
-  );
+  const mod = await jiti.import<Record<string, unknown>>(pathToFileURL(entryPath).href);
 
   const exportName = config.registryExport ?? 'registry';
   const candidate =

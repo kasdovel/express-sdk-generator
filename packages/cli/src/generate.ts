@@ -21,9 +21,7 @@ export interface GenerateResult {
 }
 
 /** Load the registry and emit the requested artifacts. */
-export async function generate(
-  options: GenerateOptions = {},
-): Promise<GenerateResult> {
+export async function generate(options: GenerateOptions = {}): Promise<GenerateResult> {
   const cwd = options.cwd ?? process.cwd();
   const configPath = resolveConfigPath(cwd, options.configPath);
   const config: SdkgenConfig = await loadConfig(configPath);

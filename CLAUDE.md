@@ -41,8 +41,8 @@ example will use stale `dist/` — `pnpm build` handles the ordering (`core#buil
 
 Two published packages plus an example, split by **when code runs** (see ADR-0003):
 
-- **`@sdkgen/core`** — runtime, a *production* dependency of the user's app.
-- **`@sdkgen/cli`** — the `sdkgen` generator, a *devDependency*. Depends on `core`; the arrow
+- **`@sdkgen/core`** — runtime, a _production_ dependency of the user's app.
+- **`@sdkgen/cli`** — the `sdkgen` generator, a _devDependency_. Depends on `core`; the arrow
   never points back.
 
 The data flow is a single pipeline, all keyed off one in-memory **Registry**:
@@ -93,7 +93,7 @@ The SDK is generated **from the registry/document, not by running a standard Ope
   `BaseClient`, the `Transport` abstraction, and `ApiError`. A `Transport` is a per-method
   (with client-wide default) async fn returning `{ status, data }`; `BaseClient` still owns
   header merge, `content-type`, status→`ApiError`, and response validation, so a `Transport`
-  swaps *delivery* only and never bypasses zero-drift (ADR-0005). Default transport is global
+  swaps _delivery_ only and never bypasses zero-drift (ADR-0005). Default transport is global
   `fetch`.
 - `client.ts` — one method per operationId; **always** parses the response through the
   operation's Zod schema before returning, so server/SDK drift throws.

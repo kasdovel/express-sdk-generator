@@ -1,4 +1,4 @@
-import { createServer } from 'node:http';
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { dirname } from 'node:path';
 import { loadConfig, loadRegistry } from './load.js';
 import { resolveConfigPath } from './config.js';
@@ -30,7 +30,7 @@ export async function serve(options: ServeOptions = {}): Promise<void> {
   const baseDir = dirname(configPath);
   const port = options.port ?? 4000;
 
-  const server = createServer(async (req, res) => {
+  const handle = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     try {
       // Re-import the registry each request so edits are reflected on reload.
       const registry = await loadRegistry(config, configPath);
@@ -52,7 +52,10 @@ export async function serve(options: ServeOptions = {}): Promise<void> {
       res.statusCode = 500;
       res.end(String(err instanceof Error ? err.message : err));
     }
-  });
+  };
+
+  // The listener must return void; the async work is fire-and-forget per request.
+  const server = createServer((req, res) => void handle(req, res));
 
   await new Promise<void>((resolve) => server.listen(port, resolve));
   console.log(`Docs preview on http://localhost:${port} (cwd: ${baseDir})`);

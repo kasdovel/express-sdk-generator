@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { Command } from 'commander';
+import { Command, type OptionValues } from 'commander';
 import { generate, type Artifact } from './generate.js';
 import { serve } from './serve.js';
 
@@ -30,33 +30,40 @@ const gen = program
   .description('Generate artifacts')
   .option('-c, --config <path>', 'path to config file');
 
+// The `-c/--config` flag lives on the parent `gen` command, so each subcommand
+// reads its parent's options.
+const genFlags = (cmd: Command): GenFlags => cmd.parent?.opts<GenFlags>() ?? {};
+
 gen
   .command('spec')
   .description('Generate only the OpenAPI spec')
-  .action((_o, cmd) => run(['spec'], cmd.parent.opts()));
+  .action((_o: OptionValues, cmd: Command) => run(['spec'], genFlags(cmd)));
 
 gen
   .command('docs')
   .description('Generate only the docs HTML')
-  .action((_o, cmd) => run(['docs'], cmd.parent.opts()));
+  .action((_o: OptionValues, cmd: Command) => run(['docs'], genFlags(cmd)));
 
 gen
   .command('sdk')
   .description('Generate only the TypeScript SDK')
-  .action((_o, cmd) => run(['sdk'], cmd.parent.opts()));
+  .action((_o: OptionValues, cmd: Command) => run(['sdk'], genFlags(cmd)));
 
 gen
   .command('all', { isDefault: true })
   .description('Generate spec, docs, and SDK')
-  .action((_o, cmd) => run(undefined, cmd.parent.opts()));
+  .action((_o: OptionValues, cmd: Command) => run(undefined, genFlags(cmd)));
+
+interface ServeFlags {
+  config?: string;
+  port?: string;
+}
 
 program
   .command('serve')
   .description('Serve live docs built from the registry')
   .option('-c, --config <path>', 'path to config file')
   .option('-p, --port <port>', 'port', '4000')
-  .action((opts) =>
-    serve({ configPath: opts.config, port: Number(opts.port) }),
-  );
+  .action((opts: ServeFlags) => serve({ configPath: opts.config, port: Number(opts.port) }));
 
-program.parseAsync(process.argv);
+void program.parseAsync(process.argv);

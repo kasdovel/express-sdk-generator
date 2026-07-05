@@ -1,10 +1,5 @@
 export { defineConfig, resolveConfigPath } from './config.js';
-export type {
-  SdkgenConfig,
-  SpecConfig,
-  DocsConfig,
-  SdkConfig,
-} from './config.js';
+export type { SdkgenConfig, SpecConfig, DocsConfig, SdkConfig } from './config.js';
 
 export { loadConfig, loadRegistry } from './load.js';
 export { emitSpec } from './emitSpec.js';

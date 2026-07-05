@@ -12,7 +12,7 @@ export interface SchemaContext {
   components: Record<string, JsonSchema>;
 }
 
-export type JsonSchema = {
+export interface JsonSchema {
   $ref?: string;
   type?: string | string[];
   format?: string;
@@ -33,7 +33,7 @@ export type JsonSchema = {
   minimum?: number;
   maximum?: number;
   description?: string;
-};
+}
 
 function lit(value: unknown): string {
   return JSON.stringify(value);
@@ -97,16 +97,10 @@ function objectExpr(schema: JsonSchema, ctx: SchemaContext, seen: Set<string>): 
     if (!required.has(key)) expr += '.optional()';
     return `    ${JSON.stringify(key)}: ${expr},`;
   });
-  let expr =
-    lines.length > 0
-      ? `z.object({\n${lines.join('\n')}\n  })`
-      : 'z.object({})';
+  let expr = lines.length > 0 ? `z.object({\n${lines.join('\n')}\n  })` : 'z.object({})';
   if (schema.additionalProperties === false) {
     expr += '.strict()';
-  } else if (
-    schema.additionalProperties &&
-    typeof schema.additionalProperties === 'object'
-  ) {
+  } else if (schema.additionalProperties && typeof schema.additionalProperties === 'object') {
     expr += `.catchall(${toZod(schema.additionalProperties, ctx, seen)})`;
   }
   return expr;
@@ -116,7 +110,7 @@ function objectExpr(schema: JsonSchema, ctx: SchemaContext, seen: Set<string>): 
 export function toZod(
   schema: JsonSchema | undefined,
   ctx: SchemaContext,
-  seen: Set<string> = new Set(),
+  seen = new Set<string>(),
 ): string {
   if (!schema) return 'z.any()';
 
@@ -150,7 +144,7 @@ export function toZod(
   if (union?.length) {
     const expr =
       union.length === 1
-        ? toZod(union[0]!, ctx, seen)
+        ? toZod(union[0], ctx, seen)
         : `z.union([${union.map((s) => toZod(s, ctx, seen)).join(', ')}])`;
     return wrap(schema, expr);
   }

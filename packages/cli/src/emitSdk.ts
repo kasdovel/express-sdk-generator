@@ -37,16 +37,15 @@ function collectOperations(doc: OADoc): Operation[] {
   const ops: Operation[] = [];
   const paths = doc.paths ?? {};
   for (const [path, item] of Object.entries(paths)) {
-    const pathParams = ((item as { parameters?: unknown[] }).parameters ??
-      []) as Record<string, unknown>[];
+    const pathParams = ((item as { parameters?: unknown[] }).parameters ?? []) as Record<
+      string,
+      unknown
+    >[];
     for (const method of HTTP_METHODS) {
       const op = item[method] as Record<string, unknown> | undefined;
       if (!op) continue;
 
-      const allParams = [
-        ...pathParams,
-        ...(((op.parameters as Record<string, unknown>[]) ?? [])),
-      ];
+      const allParams = [...pathParams, ...((op.parameters as Record<string, unknown>[]) ?? [])];
       const toParam = (p: Record<string, unknown>): Param => ({
         name: String(p.name),
         required: Boolean(p.required),
@@ -55,24 +54,19 @@ function collectOperations(doc: OADoc): Operation[] {
 
       const body = (op.requestBody as Record<string, unknown>) ?? undefined;
       const bodySchema = body
-        ? ((body.content as Record<string, { schema?: JsonSchema }>)?.[
-            'application/json'
-          ]?.schema as JsonSchema | undefined)
+        ? ((body.content as Record<string, { schema?: JsonSchema }>)?.['application/json']
+            ?.schema)
         : undefined;
 
       ops.push({
-        operationId: String(
-          op.operationId ?? `${method}${path.replace(/[^A-Za-z0-9]/g, '_')}`,
-        ),
+        operationId:
+          (op.operationId as string | undefined) ??
+          `${method}${path.replace(/[^A-Za-z0-9]/g, '_')}`,
         method,
         path,
         summary: op.summary as string | undefined,
-        pathParams: allParams
-          .filter((p) => p.in === 'path')
-          .map(toParam),
-        queryParams: allParams
-          .filter((p) => p.in === 'query')
-          .map(toParam),
+        pathParams: allParams.filter((p) => p.in === 'path').map(toParam),
+        queryParams: allParams.filter((p) => p.in === 'query').map(toParam),
         bodySchema,
         bodyRequired: body ? Boolean(body.required) : false,
         responseSchema: pickResponseSchema(op),
@@ -89,9 +83,8 @@ function pickResponseSchema(op: Record<string, unknown>): JsonSchema | undefined
     .sort();
   for (const code of codes) {
     const r = responses[code] as Record<string, unknown>;
-    const schema = (r.content as Record<string, { schema?: JsonSchema }>)?.[
-      'application/json'
-    ]?.schema;
+    const schema = (r.content as Record<string, { schema?: JsonSchema }>)?.['application/json']
+      ?.schema;
     if (schema) return schema;
   }
   return undefined;
@@ -106,11 +99,7 @@ function paramsObjectSchema(params: Param[]): JsonSchema {
 }
 
 /** Generate the SDK files from the OpenAPI document. */
-export async function emitSdk(
-  document: object,
-  sdk: SdkConfig,
-  cwd: string,
-): Promise<string> {
+export async function emitSdk(document: object, sdk: SdkConfig, cwd: string): Promise<string> {
   const doc = document as OADoc;
   const ctx: SchemaContext = { components: doc.components?.schemas ?? {} };
   const ops = collectOperations(doc);
@@ -127,31 +116,23 @@ export async function emitSdk(
   for (const op of ops) {
     const id = op.operationId;
     if (op.responseSchema) {
-      schemaLines.push(
-        `export const ${id}Response = ${toZod(op.responseSchema, ctx)};`,
-      );
+      schemaLines.push(`export const ${id}Response = ${toZod(op.responseSchema, ctx)};`);
     } else {
       schemaLines.push(`export const ${id}Response = z.void();`);
     }
-    typeLines.push(
-      `export type ${cap(id)}Response = z.infer<typeof s.${id}Response>;`,
-    );
+    typeLines.push(`export type ${cap(id)}Response = z.infer<typeof s.${id}Response>;`);
 
     if (op.pathParams.length) {
       schemaLines.push(
         `export const ${id}Params = ${toZod(paramsObjectSchema(op.pathParams), ctx)};`,
       );
-      typeLines.push(
-        `export type ${cap(id)}Params = z.infer<typeof s.${id}Params>;`,
-      );
+      typeLines.push(`export type ${cap(id)}Params = z.infer<typeof s.${id}Params>;`);
     }
     if (op.queryParams.length) {
       schemaLines.push(
         `export const ${id}Query = ${toZod(paramsObjectSchema(op.queryParams), ctx)};`,
       );
-      typeLines.push(
-        `export type ${cap(id)}Query = z.infer<typeof s.${id}Query>;`,
-      );
+      typeLines.push(`export type ${cap(id)}Query = z.infer<typeof s.${id}Query>;`);
     }
     if (op.bodySchema) {
       schemaLines.push(`export const ${id}Body = ${toZod(op.bodySchema, ctx)};`);
@@ -217,9 +198,7 @@ function renderMethod(op: Operation): string {
     op.queryParams.some((p) => p.required) ||
     Boolean(op.bodySchema && op.bodyRequired);
   const argType = hasArgs ? `{ ${argFields.join('; ')} }` : '';
-  const argParam = hasArgs
-    ? `args: ${argType}${argsRequired ? '' : ' = {}'}, `
-    : '';
+  const argParam = hasArgs ? `args: ${argType}${argsRequired ? '' : ' = {}'}, ` : '';
 
   const argRef = hasArgs ? 'args' : '{}';
   const summary = op.summary ? `  /** ${op.summary} */\n` : '';

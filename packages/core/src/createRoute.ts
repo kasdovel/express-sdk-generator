@@ -1,12 +1,8 @@
 import type { Router, Request, Response, NextFunction } from 'express';
 import type { z } from 'zod';
 import type { Method, ResponseDef, RouteDef } from './types.js';
-import { Registry, registry as globalRegistry } from './registry.js';
-import {
-  validateRequest,
-  type ValidationOptions,
-  type ValidatedData,
-} from './validate.js';
+import { type Registry, registry as globalRegistry } from './registry.js';
+import { validateRequest, type ValidationOptions, type ValidatedData } from './validate.js';
 
 type Infer<S> = S extends z.ZodTypeAny ? z.infer<S> : unknown;
 
@@ -58,9 +54,7 @@ function isZodSchema(value: ResponseInput): value is z.ZodTypeAny {
   return typeof (value as { safeParse?: unknown }).safeParse === 'function';
 }
 
-function normalizeResponses(
-  responses: Record<number, ResponseInput>,
-): Record<number, ResponseDef> {
+function normalizeResponses(responses: Record<number, ResponseInput>): Record<number, ResponseDef> {
   const out: Record<number, ResponseDef> = {};
   for (const [code, value] of Object.entries(responses)) {
     out[Number(code)] = isZodSchema(value) ? { schema: value } : value;

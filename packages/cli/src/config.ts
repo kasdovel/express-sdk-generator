@@ -70,7 +70,5 @@ export function resolveConfigPath(cwd: string, explicit?: string): string {
     const p = resolve(cwd, name);
     if (existsSync(p)) return p;
   }
-  throw new Error(
-    `No config file found in ${cwd}. Expected one of: ${CONFIG_NAMES.join(', ')}`,
-  );
+  throw new Error(`No config file found in ${cwd}. Expected one of: ${CONFIG_NAMES.join(', ')}`);
 }

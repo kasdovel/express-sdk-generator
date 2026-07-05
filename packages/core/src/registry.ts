@@ -10,9 +10,7 @@ export class Registry {
   readonly routes: RouteDef[] = [];
 
   add(route: RouteDef): void {
-    const clash = this.routes.find(
-      (r) => r.operationId === route.operationId,
-    );
+    const clash = this.routes.find((r) => r.operationId === route.operationId);
     if (clash) {
       throw new Error(
         `Duplicate operationId "${route.operationId}" ` +

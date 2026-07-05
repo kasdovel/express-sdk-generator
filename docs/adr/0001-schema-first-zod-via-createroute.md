@@ -1,6 +1,6 @@
 # Schema-first with Zod via a `createRoute` registry
 
-Express exposes paths and methods at runtime but not request/response *types*, so any
+Express exposes paths and methods at runtime but not request/response _types_, so any
 generator must get schemas from somewhere. We chose **schema-first with Zod**: the user
 declares Zod schemas once per route through a `createRoute` helper that, in one call,
 registers the Express handler, installs request validation, and records the schemas in a

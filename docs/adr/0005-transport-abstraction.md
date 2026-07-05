@@ -21,11 +21,16 @@ transport shapes).
 
 ```ts
 interface TransportRequest {
-  url: string; method: string;
+  url: string;
+  method: string;
   headers: Record<string, string>;
-  body?: unknown; signal?: AbortSignal;
+  body?: unknown;
+  signal?: AbortSignal;
 }
-interface TransportResponse { status: number; data: unknown; }
+interface TransportResponse {
+  status: number;
+  data: unknown;
+}
 type Transport = (req: TransportRequest) => Promise<TransportResponse>;
 ```
 
@@ -33,7 +38,7 @@ The decisive constraint: **a Transport changes delivery, never meaning.** The SD
 ownership of everything that guards against Drift ([ADR-0002](0002-sdk-from-registry-not-openapi-codegen.md)):
 it merges headers and sets `content-type`, it decides success (`status` in `200–299`, else it
 raises `ApiError(status, data)`), and it still runs `responseSchema.parse(data)` on every
-response. A Transport only decides *how bytes travel* and *how the body is deserialized*. Body
+response. A Transport only decides _how bytes travel_ and _how the body is deserialized_. Body
 serialization moves into the Transport (the built-in adapter `JSON.stringify`s; axios takes the
 object as-is), because that is the one part that genuinely differs between HTTP clients.
 
@@ -42,7 +47,7 @@ Two contract rules that a future reader will otherwise trip over:
 - **A Transport must not throw on an HTTP error status.** It resolves with `{ status, data }`
   for 4xx/5xx just as for 2xx; the SDK turns the status into the failure. Only a true network
   failure (DNS, timeout, connection reset) throws out of a Transport and propagates raw. This
-  matters most for axios, which *rejects* on non-2xx by default — an axios Transport must set
+  matters most for axios, which _rejects_ on non-2xx by default — an axios Transport must set
   `validateStatus: () => true`.
 - **Error bodies are not schema-validated.** `ApiError.body` carries the server's parsed error
   payload as `unknown`; the consumer branches on `status` and reads `body`. Typing error

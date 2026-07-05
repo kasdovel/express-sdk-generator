@@ -1,13 +1,6 @@
 import type { z } from 'zod';
 
-export type Method =
-  | 'get'
-  | 'post'
-  | 'put'
-  | 'patch'
-  | 'delete'
-  | 'head'
-  | 'options';
+export type Method = 'get' | 'post' | 'put' | 'patch' | 'delete' | 'head' | 'options';
 
 /** A single status-code response: a Zod schema plus optional description. */
 export interface ResponseDef {
