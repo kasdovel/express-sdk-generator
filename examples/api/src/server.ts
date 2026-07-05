@@ -27,9 +27,7 @@ export async function createAppWithDocs(): Promise<Express> {
 
 // Only start a server when run directly (`tsx src/server.ts`), so importing
 // this module stays side-effect-free.
-const isMain =
-  process.argv[1] &&
-  import.meta.url === pathToFileURL(process.argv[1]).href;
+const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 
 if (isMain) {
   const app = await createAppWithDocs();

@@ -23,19 +23,21 @@ describe('toZod', () => {
   });
 
   it('handles oneOf/anyOf unions and collapses a single member', () => {
-    expect(
-      toZod({ oneOf: [{ type: 'string' }, { type: 'number' }] }, ctx),
-    ).toBe('z.union([z.string(), z.number()])');
+    expect(toZod({ oneOf: [{ type: 'string' }, { type: 'number' }] }, ctx)).toBe(
+      'z.union([z.string(), z.number()])',
+    );
     // A one-member union is not wrapped in z.union.
     expect(toZod({ anyOf: [{ type: 'string' }] }, ctx)).toBe('z.string()');
   });
 
   it('handles enum, nullable, and $ref', () => {
-    expect(toZod({ enum: ['a', 'b'] }, ctx)).toBe("z.enum([\"a\", \"b\"])");
+    expect(toZod({ enum: ['a', 'b'] }, ctx)).toBe('z.enum(["a", "b"])');
     expect(toZod({ type: ['string', 'null'] }, ctx)).toBe('z.string().nullable()');
 
     const refCtx: SchemaContext = {
-      components: { Foo: { type: 'object', properties: { x: { type: 'string' } }, required: ['x'] } },
+      components: {
+        Foo: { type: 'object', properties: { x: { type: 'string' } }, required: ['x'] },
+      },
     };
     expect(toZod({ $ref: '#/components/schemas/Foo' }, refCtx)).toContain('"x": z.string()');
   });

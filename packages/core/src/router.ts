@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { IRouter } from 'express';
 import type { z } from 'zod';
-import { Registry, registry as globalRegistry } from './registry.js';
+import { type Registry, registry as globalRegistry } from './registry.js';
 import { registerRoute, type CreateRouteConfig } from './createRoute.js';
 import { joinPaths } from './path.js';
 
@@ -34,12 +34,7 @@ export class ApiRouter {
   private readonly express: Router;
   private readonly registry: Registry;
 
-  constructor(
-    localPrefix: string,
-    fullPrefix: string,
-    express: Router,
-    registry: Registry,
-  ) {
+  constructor(localPrefix: string, fullPrefix: string, express: Router, registry: Registry) {
     this.localPrefix = joinPaths(localPrefix);
     this.fullPrefix = fullPrefix;
     this.express = express;
@@ -81,10 +76,7 @@ export class ApiRouter {
 }
 
 /** Create a top-level router whose prefix is also its mount path. */
-export function router(
-  prefix: string,
-  options: ApiRouterOptions = {},
-): ApiRouter {
+export function router(prefix: string, options: ApiRouterOptions = {}): ApiRouter {
   return new ApiRouter(
     prefix,
     joinPaths(prefix),

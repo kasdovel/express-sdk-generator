@@ -84,11 +84,7 @@ ${script}
 `;
 }
 
-async function renderSwagger(
-  document: object,
-  title: string,
-  offline: boolean,
-): Promise<string> {
+async function renderSwagger(document: object, title: string, offline: boolean): Promise<string> {
   if (!offline) return swaggerHtml(document, title);
   const [css, js] = await Promise.all([
     readPackageFile('swagger-ui-dist', 'swagger-ui.css'),
@@ -97,11 +93,7 @@ async function renderSwagger(
   return swaggerHtml(document, title, { css, js });
 }
 
-async function renderRedoc(
-  document: object,
-  title: string,
-  offline: boolean,
-): Promise<string> {
+async function renderRedoc(document: object, title: string, offline: boolean): Promise<string> {
   if (!offline) return redocHtml(document, title);
   const js = await readPackageFile('redoc', 'bundles', 'redoc.standalone.js');
   return redocHtml(document, title, js);
@@ -111,11 +103,7 @@ async function renderRedoc(
  * Write docs HTML with the spec inlined. By default the UI is loaded from a CDN;
  * with `offline: true` the UI assets are vendored into the file too.
  */
-export async function emitDocs(
-  document: object,
-  docs: DocsConfig,
-  cwd: string,
-): Promise<string> {
+export async function emitDocs(document: object, docs: DocsConfig, cwd: string): Promise<string> {
   const title = docs.title ?? 'API Documentation';
   const offline = docs.offline ?? false;
   const html =

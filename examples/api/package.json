@@ -7,6 +7,7 @@
     "gen": "sdkgen gen all",
     "dev": "tsx src/server.ts",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
     "test": "vitest run"
   },
   "dependencies": {

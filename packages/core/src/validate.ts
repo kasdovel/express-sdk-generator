@@ -15,12 +15,7 @@ export interface ValidationOptions {
    * Customize the 400 response. Default emits
    * `{ error: 'ValidationError', part, issues }`.
    */
-  onError?: (
-    failure: ValidationFailure,
-    req: Request,
-    res: Response,
-    next: NextFunction,
-  ) => void;
+  onError?: (failure: ValidationFailure, req: Request, res: Response, next: NextFunction) => void;
 }
 
 /** Container of validated request data, attached to `req.valid`. */
@@ -66,9 +61,7 @@ export function validateRequest(
       for (const part of PART_SOURCES) {
         const schema = request[part];
         if (!schema) continue;
-        const result = schema.safeParse(
-          (req as unknown as Record<string, unknown>)[part],
-        );
+        const result = schema.safeParse((req as unknown as Record<string, unknown>)[part]);
         if (!result.success) {
           onError({ part, issues: result.error.issues }, req, res, next);
           return;

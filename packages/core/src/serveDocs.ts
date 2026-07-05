@@ -1,5 +1,6 @@
 import type { IRouter, RequestHandler } from 'express';
-import { Registry, registry as globalRegistry } from './registry.js';
+import type * as SwaggerUiExpress from 'swagger-ui-express';
+import { type Registry, registry as globalRegistry } from './registry.js';
 import { buildDocument, type DocumentInfo } from './document.js';
 
 export interface ServeDocsOptions extends DocumentInfo {
@@ -18,11 +19,8 @@ export interface ServeDocsOptions extends DocumentInfo {
  * `swagger-ui-express` is an optional peer dependency; this throws a clear
  * error if it is not installed.
  */
-export async function serveDocs(
-  app: IRouter,
-  options: ServeDocsOptions,
-): Promise<void> {
-  let swaggerUi: typeof import('swagger-ui-express');
+export async function serveDocs(app: IRouter, options: ServeDocsOptions): Promise<void> {
+  let swaggerUi: typeof SwaggerUiExpress;
   try {
     swaggerUi = await import('swagger-ui-express');
   } catch {
@@ -41,9 +39,5 @@ export async function serveDocs(
     res.json(document);
   }) as RequestHandler);
 
-  app.use(
-    mountPath,
-    swaggerUi.serve,
-    swaggerUi.setup(document as Record<string, unknown>),
-  );
+  app.use(mountPath, swaggerUi.serve, swaggerUi.setup(document as Record<string, unknown>));
 }
