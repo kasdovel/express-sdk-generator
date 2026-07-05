@@ -23,7 +23,8 @@ jobs:
 
       - run: pnpm build
 
-      - run: pnpm --filter @example/api gen
+      - run: node ../../packages/cli/dist/bin.js gen all
+        working-directory: examples/api
 
       - run: pnpm typecheck
 
