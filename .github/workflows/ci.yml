@@ -23,6 +23,8 @@ jobs:
 
       - run: pnpm build
 
+      - run: pnpm --filter @example/api gen
+
       - run: pnpm typecheck
 
       - run: pnpm test
