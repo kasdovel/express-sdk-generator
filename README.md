@@ -87,9 +87,33 @@ const user = await api.updateUser({ params: { id: '1' }, body: { name: 'Ada' } }
 // `user` is typed; the response is validated against the route's Zod schema.
 ```
 
-The client transport is pluggable (defaults to native `fetch`); pass `{ fetch }` to inject
-your own. Responses are always validated, so server/SDK drift throws instead of silently
-mis-typing.
+The client transport is pluggable per HTTP method. Pass a client-wide `transport`, or a
+`transports` map to override individual methods — each is an async function that carries one
+request and returns `{ status, data }` (already parsed), so axios or a custom/cached fetcher
+drops in without a text round-trip:
+
+```ts
+import axios from 'axios';
+
+const api = new ApiClient({
+  baseUrl: 'https://api.example.com',
+  transports: {
+    // A caching/custom fetcher just for GET; everything else uses the default.
+    GET: async ({ url, headers, signal }) => {
+      const res = await axios.get(url, {
+        headers,
+        signal,
+        validateStatus: () => true, // must not throw on non-2xx
+      });
+      return { status: res.status, data: res.data };
+    },
+  },
+});
+```
+
+The default transport uses native `fetch`. Whatever the transport, the SDK owns the rest:
+it merges headers, turns a non-2xx `status` into `ApiError`, and always validates the response
+against the route's Zod schema — so server/SDK drift throws instead of silently mis-typing.
 
 ### Nested routers
 

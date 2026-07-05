@@ -8,8 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Express + TypeScript app. The design constraint is **zero drift**: a user declares Zod
 schemas once per route via `createRoute`, and that single declaration drives runtime request
 validation, the spec, the docs, and the SDK. Read `CONTEXT.md` for the canonical glossary
-(Route, Operation, Registry, Entry, Artifact) and `docs/adr/` for the three decisions that
-shape everything.
+(Route, Operation, Registry, Entry, Artifact, Transport) and `docs/adr/` for the decisions
+that shape everything.
 
 ## Commands
 
@@ -89,7 +89,11 @@ The SDK is generated **from the registry/document, not by running a standard Ope
   Schemas. This is what makes the SDK self-contained and able to validate responses without
   importing app code.
 - `runtime.ts` — copied verbatim from `cli/sdkRuntime.ts` (a string template). Contains
-  `BaseClient` (pluggable fetch transport, defaults to global `fetch`) and `ApiError`.
+  `BaseClient`, the `Transport` abstraction, and `ApiError`. A `Transport` is a per-method
+  (with client-wide default) async fn returning `{ status, data }`; `BaseClient` still owns
+  header merge, `content-type`, status→`ApiError`, and response validation, so a `Transport`
+  swaps *delivery* only and never bypasses zero-drift (ADR-0005). Default transport is global
+  `fetch`.
 - `client.ts` — one method per operationId; **always** parses the response through the
   operation's Zod schema before returning, so server/SDK drift throws.
 
