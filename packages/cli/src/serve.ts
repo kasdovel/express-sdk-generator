@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { dirname } from 'node:path';
 import { loadConfig, loadRegistry } from './load.js';
 import { resolveConfigPath } from './config.js';
-import { buildDocument } from '@sdkgen/core';
+import { buildDocument } from '@kasdovel/express-sdkgen-core';
 
 const SWAGGER_VERSION = '5.18.2';
 

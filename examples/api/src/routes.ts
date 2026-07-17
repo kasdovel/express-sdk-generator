@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { randomUUID } from 'node:crypto';
-import { createRoute } from '@sdkgen/core';
+import { createRoute } from '@kasdovel/express-sdkgen-core';
 import * as S from './schemas.js';
 
 export const router: Router = Router();

@@ -1,5 +1,5 @@
 {
-  "name": "@sdkgen/core",
+  "name": "@kasdovel/express-sdkgen-core",
   "version": "0.0.0",
   "description": "Runtime helpers: createRoute, registry, request validation, serveDocs middleware",
   "author": "kasdovel <yoveln115@gmail.com>",

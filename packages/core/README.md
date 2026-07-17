@@ -1,15 +1,15 @@
-# @sdkgen/core
+# @kasdovel/express-sdkgen-core
 
 Runtime helpers for `sdkgen` to declare type-safe routes, perform runtime request validation, and serve API documentation.
 
 ## Installation
 
 ```bash
-npm install @sdkgen/core zod express
+npm install @kasdovel/express-sdkgen-core zod express
 # or
-pnpm add @sdkgen/core zod express
+pnpm add @kasdovel/express-sdkgen-core zod express
 # or
-yarn add @sdkgen/core zod express
+yarn add @kasdovel/express-sdkgen-core zod express
 ```
 
 ## Features
@@ -27,7 +27,7 @@ yarn add @sdkgen/core zod express
 ```typescript
 import { Router } from 'express';
 import { z } from 'zod';
-import { createRoute } from '@sdkgen/core';
+import { createRoute } from '@kasdovel/express-sdkgen-core';
 
 export const router = Router();
 
@@ -52,7 +52,7 @@ createRoute(router, {
 To mount routers under a prefix and preserve complete paths in the generated OpenAPI spec:
 
 ```typescript
-import { router } from '@sdkgen/core';
+import { router } from '@kasdovel/express-sdkgen-core';
 
 const accounts = router('/accounts');
 
@@ -83,7 +83,7 @@ accounts.mount(app);
 Serve Swagger UI or Redoc documentation from the in-memory route registry:
 
 ```typescript
-import { registry, serveDocs } from '@sdkgen/core';
+import { registry, serveDocs } from '@kasdovel/express-sdkgen-core';
 import express from 'express';
 
 const app = express();

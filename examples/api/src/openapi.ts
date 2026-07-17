@@ -3,4 +3,4 @@
 import './routes.js';
 import './admin.js';
 
-export { registry } from '@sdkgen/core';
+export { registry } from '@kasdovel/express-sdkgen-core';

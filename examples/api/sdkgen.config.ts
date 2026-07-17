@@ -1,4 +1,4 @@
-import { defineConfig } from '@sdkgen/cli';
+import { defineConfig } from '@kasdovel/express-sdkgen-cli';
 
 export default defineConfig({
   entry: 'src/openapi.ts',

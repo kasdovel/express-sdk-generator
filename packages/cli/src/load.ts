@@ -1,7 +1,7 @@
 import { resolve, dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createJiti } from 'jiti';
-import type { Registry } from '@sdkgen/core';
+import type { Registry } from '@kasdovel/express-sdkgen-core';
 import type { SdkgenConfig } from './config.js';
 
 const jiti = createJiti(import.meta.url, {

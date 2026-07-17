@@ -9,10 +9,10 @@ generated SDK (which validates responses with the same schemas).
 
 ## Packages
 
-| Package                         | Role                                                              | Install as      |
-| ------------------------------- | ----------------------------------------------------------------- | --------------- |
-| [`@sdkgen/core`](packages/core) | Runtime: `createRoute`, registry, request validation, `serveDocs` | `dependency`    |
-| [`@sdkgen/cli`](packages/cli)   | Generator CLI (`sdkgen`)                                          | `devDependency` |
+| Package                                          | Role                                                              | Install as      |
+| ------------------------------------------------ | ----------------------------------------------------------------- | --------------- |
+| [`@kasdovel/express-sdkgen-core`](packages/core) | Runtime: `createRoute`, registry, request validation, `serveDocs` | `dependency`    |
+| [`@kasdovel/express-sdkgen-cli`](packages/cli)   | Generator CLI (`sdkgen`)                                          | `devDependency` |
 
 ## Usage
 
@@ -21,7 +21,7 @@ generated SDK (which validates responses with the same schemas).
 ```ts
 import { Router } from 'express';
 import { z } from 'zod';
-import { createRoute } from '@sdkgen/core';
+import { createRoute } from '@kasdovel/express-sdkgen-core';
 
 export const router: Router = Router();
 
@@ -49,7 +49,7 @@ request), and types the handler.
 ```ts
 // src/openapi.ts
 import './routes.js'; // populates the registry
-export { registry } from '@sdkgen/core';
+export { registry } from '@kasdovel/express-sdkgen-core';
 ```
 
 The entry must not call `app.listen()` — the CLI imports it in-process via `jiti`.
@@ -58,7 +58,7 @@ The entry must not call `app.listen()` — the CLI imports it in-process via `ji
 
 ```ts
 // sdkgen.config.ts
-import { defineConfig } from '@sdkgen/cli';
+import { defineConfig } from '@kasdovel/express-sdkgen-cli';
 
 export default defineConfig({
   entry: 'src/openapi.ts',
@@ -127,7 +127,7 @@ mounted. For routers mounted under a prefix, use a prefix-aware `router` so the 
 the fully-qualified path while Express still routes by the local path:
 
 ```ts
-import { router } from '@sdkgen/core';
+import { router } from '@kasdovel/express-sdkgen-core';
 
 const accounts = router('/accounts');
 accounts.route({
@@ -159,7 +159,7 @@ app root, so a root-mounted router needs no `router(...)` wrapper.
 ### Live docs in your own app
 
 ```ts
-import { registry, serveDocs } from '@sdkgen/core';
+import { registry, serveDocs } from '@kasdovel/express-sdkgen-core';
 await serveDocs(app, { registry, title: 'My API', version: '1.0.0', path: '/docs' });
 ```
 

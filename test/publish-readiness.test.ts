@@ -1,5 +1,5 @@
 /**
- * Verify publication readiness of @sdkgen/core and @sdkgen/cli.
+ * Verify publication readiness of @kasdovel/express-sdkgen-core and @kasdovel/express-sdkgen-cli.
  *
  * Acceptance criteria (issue #11):
  * 1. `pnpm pack --dry-run` succeeds for both packages
@@ -13,8 +13,8 @@ import { existsSync } from 'node:fs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const PACKAGES = [
-  { name: '@sdkgen/core', dir: join(ROOT, 'packages', 'core') },
-  { name: '@sdkgen/cli', dir: join(ROOT, 'packages', 'cli') },
+  { name: '@kasdovel/express-sdkgen-core', dir: join(ROOT, 'packages', 'core') },
+  { name: '@kasdovel/express-sdkgen-cli', dir: join(ROOT, 'packages', 'cli') },
 ] as const;
 
 /**
@@ -106,7 +106,7 @@ describe('AC-2: No source files outside dist/, package.json, README.md, LICENSE'
 
 // ─── AC 3: CJS and ESM imports resolve without errors ──────────────────────
 describe('AC-3: Built dist imports resolve without errors', () => {
-  describe('@sdkgen/core', () => {
+  describe('@kasdovel/express-sdkgen-core', () => {
     const coreDist = join(ROOT, 'packages', 'core', 'dist');
 
     it('ESM entry exists and is importable', async () => {
@@ -138,7 +138,7 @@ describe('AC-3: Built dist imports resolve without errors', () => {
     });
   });
 
-  describe('@sdkgen/cli', () => {
+  describe('@kasdovel/express-sdkgen-cli', () => {
     const cliDist = join(ROOT, 'packages', 'cli', 'dist');
 
     it('ESM entry exists and is importable', async () => {

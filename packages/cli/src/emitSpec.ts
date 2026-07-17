@@ -1,7 +1,7 @@
 import { writeFile, mkdir } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { stringify as toYaml } from 'yaml';
-import { buildDocument, type Registry } from '@sdkgen/core';
+import { buildDocument, type Registry } from '@kasdovel/express-sdkgen-core';
 import type { SpecConfig } from './config.js';
 
 export interface EmitSpecResult {
