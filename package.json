@@ -11,9 +11,11 @@
     "dev": "turbo run dev",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "husky"
+    "prepare": "husky",
+    "changeset": "changeset"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.31.1",
     "@eslint/js": "^9.39.4",
     "@types/node": "^22.10.2",
     "eslint": "^9.39.4",
