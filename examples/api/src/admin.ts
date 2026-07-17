@@ -1,4 +1,4 @@
-import { router } from '@sdkgen/core';
+import { router } from '@kasdovel/express-sdkgen-core';
 import { z } from 'zod';
 import * as S from './schemas.js';
 

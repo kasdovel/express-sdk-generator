@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 import { existsSync } from 'node:fs';
-import type { OpenApiVersion } from '@sdkgen/core';
+import type { OpenApiVersion } from '@kasdovel/express-sdkgen-core';
 
 export interface SpecConfig {
   /** Output path for the spec. Default `openapi.json`. */

@@ -1,6 +1,6 @@
 # CLI & Generation Glossary
 
-Domain glossary for the CLI and generators package (`@sdkgen/cli`).
+Domain glossary for the CLI and generators package (`@kasdovel/express-sdkgen-cli`).
 
 ## Language
 

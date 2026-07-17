@@ -1,7 +1,7 @@
 import express from 'express';
 import type { Express } from 'express';
 import { pathToFileURL } from 'node:url';
-import { registry, serveDocs } from '@sdkgen/core';
+import { registry, serveDocs } from '@kasdovel/express-sdkgen-core';
 import { router } from './routes.js';
 import { accounts } from './admin.js';
 

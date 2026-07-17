@@ -1,15 +1,15 @@
-# @sdkgen/cli
+# @kasdovel/express-sdkgen-cli
 
 The generator CLI for `sdkgen` that builds OpenAPI specs, interactive documentation, and fully-typed TypeScript SDKs from your Express route registry.
 
 ## Installation
 
 ```bash
-npm install -D @sdkgen/cli
+npm install -D @kasdovel/express-sdkgen-cli
 # or
-pnpm add -D @sdkgen/cli
+pnpm add -D @kasdovel/express-sdkgen-cli
 # or
-yarn add -D @sdkgen/cli
+yarn add -D @kasdovel/express-sdkgen-cli
 ```
 
 ## Setup & Configuration
@@ -17,7 +17,7 @@ yarn add -D @sdkgen/cli
 Create a file named `sdkgen.config.ts` at the root of your project:
 
 ```typescript
-import { defineConfig } from '@sdkgen/cli';
+import { defineConfig } from '@kasdovel/express-sdkgen-cli';
 
 export default defineConfig({
   entry: 'src/openapi.ts', // Entrypoint that populates the registry
@@ -48,7 +48,7 @@ The entrypoint specified in your config (`entry`) must be side-effect-free (e.g.
 ```typescript
 // src/openapi.ts
 import './routes.js'; // Imports the routes to populate the registry
-export { registry } from '@sdkgen/core';
+export { registry } from '@kasdovel/express-sdkgen-core';
 ```
 
 ## CLI Commands

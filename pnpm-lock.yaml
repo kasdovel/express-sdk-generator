@@ -53,7 +53,7 @@ importers:
 
   examples/api:
     dependencies:
-      '@sdkgen/core':
+      '@kasdovel/express-sdkgen-core':
         specifier: workspace:*
         version: link:../../packages/core
       express:
@@ -63,7 +63,7 @@ importers:
         specifier: ^3.24.1
         version: 3.25.76
     devDependencies:
-      '@sdkgen/cli':
+      '@kasdovel/express-sdkgen-cli':
         specifier: workspace:*
         version: link:../../packages/cli
       '@types/express':
@@ -75,7 +75,7 @@ importers:
 
   packages/cli:
     dependencies:
-      '@sdkgen/core':
+      '@kasdovel/express-sdkgen-core':
         specifier: workspace:*
         version: link:../core
       commander:

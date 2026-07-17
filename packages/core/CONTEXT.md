@@ -1,6 +1,6 @@
 # Core Runtime Glossary
 
-Domain glossary for the core runtime package (`@sdkgen/core`).
+Domain glossary for the core runtime package (`@kasdovel/express-sdkgen-core`).
 
 ## Language
 
