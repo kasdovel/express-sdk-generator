@@ -14,16 +14,16 @@ and `docs/adr/` for the decisions that shape everything.
 
 ```bash
 pnpm install
-pnpm build            # turbo: builds @sdkgen/core then @sdkgen/cli (tsup, esm+cjs+dts)
+pnpm build            # turbo: builds @kasdovel/express-sdkgen-core then @kasdovel/express-sdkgen-cli (tsup, esm+cjs+dts)
 pnpm test             # turbo: all package + example tests (vitest)
 pnpm typecheck        # turbo: tsc --noEmit across packages
 
 # Scope to one package
-pnpm --filter @sdkgen/core build
+pnpm --filter @kasdovel/express-sdkgen-core build
 pnpm --filter @example/api typecheck
 
 # Run a single test file / single test
-pnpm --filter @sdkgen/core exec vitest run test/core.test.ts
+pnpm --filter @kasdovel/express-sdkgen-core exec vitest run test/core.test.ts
 pnpm --filter @example/api exec vitest run -t "404"
 
 # Run the generator against the example app, then preview
@@ -40,8 +40,8 @@ example will use stale `dist/` — `pnpm build` handles the ordering (`core#buil
 
 Two published packages plus an example, split by **when code runs** (see ADR-0003):
 
-- **`@sdkgen/core`** — runtime, a _production_ dependency of the user's app.
-- **`@sdkgen/cli`** — the `sdkgen` generator, a _devDependency_. Depends on `core`; the arrow
+- **`@kasdovel/express-sdkgen-core`** — runtime, a _production_ dependency of the user's app.
+- **`@kasdovel/express-sdkgen-cli`** — the `sdkgen` generator, a _devDependency_. Depends on `core`; the arrow
   never points back.
 
 The data flow is a single pipeline, all keyed off one in-memory **Registry**:
@@ -73,7 +73,7 @@ Key invariants to preserve when editing:
   and the typed handler reads from there.
 - **The Entry must be side-effect-free** (no `app.listen`, no DB connect). The CLI imports it
   in-process via jiti. The example's pattern: `src/openapi.ts` imports `./routes.js` (to
-  populate the global registry) then re-exports `registry` from `@sdkgen/core`.
+  populate the global registry) then re-exports `registry` from `@kasdovel/express-sdkgen-core`.
 - **`createRoute` records the literal path; it can't see mount prefixes.** For a router
   mounted under a prefix, use the prefix-aware `router(prefix)` (`core/router.ts`, type
   `ApiRouter`) so the registry gets the full path while Express routes by the local path —

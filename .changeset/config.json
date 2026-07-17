@@ -3,7 +3,7 @@
   "changelog": "@changesets/cli/changelog",
   "commit": false,
   "fixed": [],
-  "linked": [["@sdkgen/core", "@sdkgen/cli"]],
+  "linked": [["@kasdovel/express-sdkgen-core", "@kasdovel/express-sdkgen-cli"]],
   "access": "public",
   "baseBranch": "master",
   "updateInternalDependencies": "patch",
