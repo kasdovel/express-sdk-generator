@@ -2,6 +2,17 @@
   "name": "@sdkgen/core",
   "version": "0.0.0",
   "description": "Runtime helpers: createRoute, registry, request validation, serveDocs middleware",
+  "author": "kasdovel <yoveln115@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kasdovel/express-sdk-generator.git",
+    "directory": "packages/core"
+  },
+  "bugs": {
+    "url": "https://github.com/kasdovel/express-sdk-generator/issues"
+  },
+  "homepage": "https://github.com/kasdovel/express-sdk-generator/tree/master/packages/core#readme",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
