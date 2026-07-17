@@ -27,6 +27,13 @@ jobs:
 
       - run: pnpm build
 
+      - run: node ../../packages/cli/dist/bin.js gen all
+        working-directory: examples/api
+
+      - run: pnpm lint
+
+      - run: pnpm typecheck
+
       - run: pnpm test
 
       - name: Create Release Pull Request or Publish

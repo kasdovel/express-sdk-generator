@@ -11,13 +11,7 @@
     "test": {
       "dependsOn": ["^build"]
     },
-    "@example/api#test": {
-      "dependsOn": ["^build", "^test", "gen"]
-    },
     "lint": {
-      "dependsOn": ["^build"]
-    },
-    "gen": {
       "dependsOn": ["^build"]
     },
     "dev": {
