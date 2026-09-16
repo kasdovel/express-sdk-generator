@@ -19,10 +19,17 @@ export interface TransportRequest {
   signal?: AbortSignal;
 }
 
-/** What a Transport reports back. \`data\` is already parsed (not raw bytes). */
+/**
+ * What a Transport reports back. \`data\` is already parsed (not raw bytes).
+ *
+ * \`headers\` is **optional**: a Transport that cannot (or does not care to)
+ * report response headers stays valid, and the SDK reports \`{}\` for it. The
+ * built-in \`fetch\` adapter always populates it.
+ */
 export interface TransportResponse {
   status: number;
   data: unknown;
+  headers?: Record<string, string>;
 }
 
 /**
@@ -31,6 +38,14 @@ export interface TransportResponse {
  * network failure may throw. The SDK owns success/failure and response validation.
  */
 export type Transport = (req: TransportRequest) => Promise<TransportResponse>;
+
+/** A response with its metadata, returned by the \`…WithResponse\` methods. */
+export interface ApiResponse<T> {
+  status: number;
+  /** Lower-cased response header names. Empty when the Transport reports none. */
+  headers: Record<string, string>;
+  data: T;
+}
 
 /** Built-in default Transport over global \`fetch\`. */
 const fetchTransport: Transport = async (req) => {
@@ -50,8 +65,37 @@ const fetchTransport: Transport = async (req) => {
   if (req.body !== undefined) init.body = JSON.stringify(req.body);
   const res = await fetchImpl(req.url, init);
   const text = await res.text();
-  return { status: res.status, data: parseBody(text) };
+  return {
+    status: res.status,
+    data: parseBody(text),
+    headers: readHeaders(res.headers),
+  };
 };
+
+/** Normalize a \`fetch\` \`Headers\` object into a plain lower-cased record. */
+function readHeaders(headers: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  const iterable = headers as
+    | { forEach?: (fn: (value: string, key: string) => void) => void }
+    | undefined;
+  if (iterable && typeof iterable.forEach === 'function') {
+    iterable.forEach((value, key) => {
+      out[String(key).toLowerCase()] = String(value);
+    });
+  }
+  return out;
+}
+
+function lowerCaseKeys(
+  headers: Record<string, string> | undefined,
+): Record<string, string> {
+  if (!headers) return {};
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(headers)) {
+    out[key.toLowerCase()] = value;
+  }
+  return out;
+}
 
 /**
  * Parse a response body as JSON, falling back to the raw text. A gateway or
@@ -83,15 +127,51 @@ export interface RequestOptions {
   signal?: AbortSignal;
 }
 
-/** Thrown on a non-2xx response. \`body\` is the parsed JSON payload, if any. */
-export class ApiError extends Error {
+/**
+ * Thrown on a non-2xx response. \`body\` is the parsed error payload, if any.
+ *
+ * The generated client augments {@link ApiErrorBodies} with the schemas the
+ * routes declare for each status, so \`isApiError(err, 404)\` narrows \`body\` to
+ * the declared 404 shape instead of leaving it \`unknown\`.
+ */
+export class ApiError<TBody = unknown> extends Error {
   constructor(
     public readonly status: number,
-    public readonly body: unknown,
+    public readonly body: TBody,
   ) {
     super(\`Request failed with status \${status}\`);
     this.name = 'ApiError';
   }
+}
+
+/**
+ * Status code → declared error body. Empty here; the generated \`client.ts\`
+ * augments it with one entry per status any route declares an error schema for.
+ */
+export interface ApiErrorBodies {}
+
+/** The declared body for a status, or \`unknown\` when the API declares none. */
+export type ApiErrorBody<S extends number> = S extends keyof ApiErrorBodies
+  ? ApiErrorBodies[S]
+  : unknown;
+
+/**
+ * Narrow a caught value to an {@link ApiError}, optionally to one status.
+ *
+ * \`\`\`ts
+ * try { await api.getUser({ params: { id } }); }
+ * catch (err) { if (isApiError(err, 404)) err.body.error; }
+ * \`\`\`
+ */
+export function isApiError(err: unknown): err is ApiError<unknown>;
+export function isApiError<S extends number>(
+  err: unknown,
+  status: S,
+): err is ApiError<ApiErrorBody<S>> & { status: S };
+export function isApiError(err: unknown, status?: number): boolean {
+  return (
+    err instanceof ApiError && (status === undefined || err.status === status)
+  );
 }
 
 export interface RequestArgs {
@@ -129,6 +209,7 @@ export abstract class BaseClient {
     this.defaultHeaders = options.headers ?? {};
   }
 
+  /** Carry one request and return only the validated body. */
   protected async request<T>(
     method: string,
     pathTemplate: string,
@@ -136,6 +217,29 @@ export abstract class BaseClient {
     responseSchema: z.ZodType<T>,
     options: RequestOptions = {},
   ): Promise<T> {
+    const res = await this.requestWithResponse(
+      method,
+      pathTemplate,
+      args,
+      responseSchema,
+      options,
+    );
+    return res.data;
+  }
+
+  /**
+   * Carry one request and return the validated body *with* its status and
+   * headers, for pagination links, \`ETag\`, rate-limit headers and the like.
+   * A Transport still only changes delivery: status → \`ApiError\` and response
+   * validation happen here either way.
+   */
+  protected async requestWithResponse<T>(
+    method: string,
+    pathTemplate: string,
+    args: RequestArgs,
+    responseSchema: z.ZodType<T>,
+    options: RequestOptions = {},
+  ): Promise<ApiResponse<T>> {
     const path = pathTemplate.replace(/\\{(\\w+)\\}/g, (_m, key) => {
       const value = args.params?.[key];
       if (value === undefined || value === null) {
@@ -156,7 +260,7 @@ export abstract class BaseClient {
 
     const transport =
       this.transports[method as HttpMethod] ?? this.defaultTransport;
-    const { status, data } = await transport({
+    const res = await transport({
       url,
       method,
       headers,
@@ -164,8 +268,18 @@ export abstract class BaseClient {
       signal: options.signal,
     });
 
-    if (status < 200 || status >= 300) throw new ApiError(status, data);
-    return responseSchema.parse(data);
+    if (res.status < 200 || res.status >= 300) {
+      throw new ApiError(res.status, res.data);
+    }
+
+    // HEAD is defined to carry no body, so there is nothing to validate: the
+    // declared response schema describes what the matching GET would return.
+    const data =
+      method.toUpperCase() === 'HEAD'
+        ? (undefined as T)
+        : responseSchema.parse(res.data);
+
+    return { status: res.status, headers: lowerCaseKeys(res.headers), data };
   }
 }
 
