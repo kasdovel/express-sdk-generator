@@ -3,8 +3,8 @@
 '@kasdovel/express-sdkgen-cli': minor
 ---
 
-Close the gaps the review left open: make zero-drift enforceable, and stop the generated
-artifacts from quietly saying less than they know.
+Make zero-drift enforceable, and stop the generated artifacts from quietly saying less than they
+know.
 
 **`sdkgen check`** regenerates every configured artifact into a temporary directory and fails
 when it differs from what is committed, so a route change that was never regenerated cannot

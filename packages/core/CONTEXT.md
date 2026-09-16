@@ -25,5 +25,5 @@ Checking a payload against the schema the Route declares for that status _before
 _Avoid_: Output validation, serialization check
 
 **Security requirement**:
-A declaration that an operation needs a named scheme (`{ bearer: [] }`), recorded on the Route and emitted into the Spec. Declaration only — sdkgen never issues or verifies credentials.
+A Route's declaration that it is reached only with a named credential scheme, recorded alongside its schemas and carried into the Spec. A description of what the API expects, never an instruction to enforce it: sdkgen neither issues nor verifies credentials.
 _Avoid_: Auth, permissions, guard

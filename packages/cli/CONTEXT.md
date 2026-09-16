@@ -29,5 +29,5 @@ Any divergence between what the API actually does and what the Spec/SDK describe
 _Avoid_: Mismatch, skew, staleness
 
 **Drift gate**:
-The `check` command: regenerate every Artifact into a temporary directory and compare it with what is committed, failing when they differ. Turns the zero-drift design goal into something CI can enforce.
+A check that every committed Artifact still matches what generation produces, failing when it does not. Drift is structurally impossible only while the artifacts are regenerated; the gate is what makes that a guarantee rather than a habit.
 _Avoid_: Verify, lint, diff check
