@@ -1,0 +1,6 @@
+# Generated SDKs are build output: collapse them in diffs and keep them out of
+# language stats. They are still committed so consumers can read the client.
+examples/*/sdk/** linguist-generated=true
+examples/*/openapi.json linguist-generated=true
+examples/*/openapi.yaml linguist-generated=true
+examples/*/docs/** linguist-generated=true
