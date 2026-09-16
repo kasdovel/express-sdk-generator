@@ -11,6 +11,14 @@ export interface SpecConfig {
   description?: string;
   /** Also write a YAML copy next to the JSON. */
   yaml?: boolean;
+  /** Explicit path for the YAML copy. Defaults to `out` with a `.yaml` extension. */
+  yamlOut?: string;
+  /**
+   * Document the 400 response that request-validation middleware can emit for
+   * any route declaring `request` schemas. Default `true`; turn it off if your
+   * app replaces the default error envelope.
+   */
+  validationErrors?: boolean;
   servers?: { url: string; description?: string }[];
 }
 
@@ -34,6 +42,11 @@ export interface SdkConfig {
   baseUrl?: string;
   /** Generated client class name. Default `ApiClient`. */
   className?: string;
+  /**
+   * Parse arguments through the operation's request schemas before sending, so
+   * a bad call fails locally instead of as a 400. Default `false`.
+   */
+  validateRequests?: boolean;
 }
 
 export interface SdkgenConfig {
