@@ -108,4 +108,65 @@ describe('emitSpec yaml output', () => {
     expect(existsSync(join(yamlDir, 'openapi.yaml'))).toBe(true);
     await rm(yamlDir, { recursive: true, force: true });
   });
+
+  /** Write a config with the given `spec` body and generate from it. */
+  async function withSpec(spec: string) {
+    const specDir = await scaffold('');
+    await writeFile(
+      join(specDir, 'sdkgen.config.ts'),
+      `export default { entry: 'src/openapi.ts', spec: { ${spec} } };\n`,
+      'utf8',
+    );
+    return { dir: specDir, result: await generate({ cwd: specDir }) };
+  }
+
+  it('honours an explicit spec.yamlOut', async () => {
+    const { dir: specDir, result } = await withSpec(
+      `out: 'openapi.json', title: 'T', version: '1.0.0', yaml: true, yamlOut: 'spec/api.yaml'`,
+    );
+
+    expect(result.yamlPath).toBe(join(specDir, 'spec', 'api.yaml'));
+    expect(existsSync(join(specDir, 'spec', 'api.yaml'))).toBe(true);
+    // The inferred sibling is not written when an explicit path is given.
+    expect(existsSync(join(specDir, 'openapi.yaml'))).toBe(false);
+    await rm(specDir, { recursive: true, force: true });
+  });
+
+  it('treats spec.yamlOut as asking for YAML', async () => {
+    const { dir: specDir, result } = await withSpec(
+      `out: 'openapi.json', title: 'T', version: '1.0.0', yamlOut: 'api.yaml'`,
+    );
+
+    expect(result.yamlPath).toBe(join(specDir, 'api.yaml'));
+    expect(existsSync(join(specDir, 'api.yaml'))).toBe(true);
+    await rm(specDir, { recursive: true, force: true });
+  });
+
+  it('accepts a YAML spec.out once yamlOut disambiguates the pair', async () => {
+    const { dir: specDir, result } = await withSpec(
+      `out: 'spec.yaml', title: 'T', version: '1.0.0', yaml: true, yamlOut: 'spec-copy.yaml'`,
+    );
+
+    expect(result.specPath).toBe(join(specDir, 'spec.yaml'));
+    expect(result.yamlPath).toBe(join(specDir, 'spec-copy.yaml'));
+    await rm(specDir, { recursive: true, force: true });
+  });
+
+  it('rejects a yamlOut that points at the JSON spec', async () => {
+    const specDir = await scaffold('');
+    await writeFile(
+      join(specDir, 'sdkgen.config.ts'),
+      `export default {
+  entry: 'src/openapi.ts',
+  spec: { out: 'openapi.json', title: 'T', version: '1.0.0', yamlOut: './openapi.json' },
+};
+`,
+      'utf8',
+    );
+
+    await expect(generate({ cwd: specDir })).rejects.toThrow(/would collide/);
+    // Nothing is written when the paths do not make sense.
+    expect(existsSync(join(specDir, 'openapi.json'))).toBe(false);
+    await rm(specDir, { recursive: true, force: true });
+  });
 });
