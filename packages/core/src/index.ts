@@ -16,13 +16,16 @@ export type { ApiRouterOptions } from './router.js';
 
 export { Registry, registry, createRegistry } from './registry.js';
 
-export { validateRequest } from './validate.js';
+export { validateRequest, validationErrorBody } from './validate.js';
 export type {
   ValidationOptions,
   ValidationFailure,
   RequestPart,
   ValidatedData,
 } from './validate.js';
+
+export { ValidationErrorSchema, VALIDATION_ERROR_SCHEMA_NAME } from './validationError.js';
+export type { ValidationErrorBody } from './validationError.js';
 
 export { buildDocument } from './document.js';
 export type { DocumentInfo, OpenApiVersion } from './document.js';
