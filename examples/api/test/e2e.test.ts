@@ -57,6 +57,41 @@ describe('generated SDK against the example app', () => {
   });
 });
 
+describe('SDK error handling', () => {
+  it('reports a non-JSON error body as ApiError, not a JSON parse error', async () => {
+    // A gateway answering 502 with an HTML page must still surface as ApiError.
+    const gateway = createServer((_req, res) => {
+      res.statusCode = 502;
+      res.setHeader('content-type', 'text/html');
+      res.end('<html>Bad Gateway</html>');
+    });
+    await new Promise<void>((resolve) => gateway.listen(0, resolve));
+    const addr = gateway.address();
+    const port = typeof addr === 'object' && addr ? addr.port : 0;
+    const c = new ExampleClient({ baseUrl: `http://localhost:${port}` });
+
+    await expect(c.listUsers()).rejects.toBeInstanceOf(ApiError);
+    await expect(c.listUsers()).rejects.toMatchObject({ status: 502 });
+
+    gateway.close();
+  });
+
+  it('names the missing path parameter instead of requesting /users/undefined', async () => {
+    let seenUrl: string | undefined;
+    const c = new ExampleClient({
+      baseUrl: 'http://unused.invalid',
+      transport: async (req) => {
+        seenUrl = req.url;
+        return { status: 200, data: {} };
+      },
+    });
+
+    // @ts-expect-error deliberately omitting the required `params`
+    await expect(c.getUser({})).rejects.toThrow(/Missing path parameter "id"/);
+    expect(seenUrl).toBeUndefined();
+  });
+});
+
 describe('SDK response validation', () => {
   it('throws when the server returns a drifted shape', async () => {
     const rogue = createServer((_req, res) => {

@@ -3,12 +3,13 @@ import { dirname } from 'node:path';
 import { loadConfig, loadRegistry } from './load.js';
 import { resolveConfigPath } from './config.js';
 import { buildDocument } from '@kasdovel/express-sdkgen-core';
+import { escapeHtml } from './emitDocs.js';
 
 const SWAGGER_VERSION = '5.18.2';
 
 function page(specUrl: string, title: string): string {
   return `<!doctype html><html><head><meta charset="utf-8"/>
-<title>${title}</title>
+<title>${escapeHtml(title)}</title>
 <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@${SWAGGER_VERSION}/swagger-ui.css"/></head>
 <body><div id="swagger-ui"></div>
 <script src="https://unpkg.com/swagger-ui-dist@${SWAGGER_VERSION}/swagger-ui-bundle.js" crossorigin></script>

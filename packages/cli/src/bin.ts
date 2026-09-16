@@ -13,15 +13,27 @@ interface GenFlags {
   config?: string;
 }
 
+/** Report a failure the way a CLI should: one clear line, stack behind a flag. */
+function fail(err: unknown): void {
+  const message = err instanceof Error ? err.message : String(err);
+  console.error(`✗ ${message}`);
+  // Stacks are noise for the common case (a bad config, a broken entry module);
+  // SDKGEN_DEBUG=1 brings them back when the message is not enough.
+  if (process.env.SDKGEN_DEBUG && err instanceof Error && err.stack) {
+    console.error(err.stack);
+  }
+  process.exitCode = 1;
+}
+
 async function run(only: Artifact[] | undefined, flags: GenFlags): Promise<void> {
   try {
     const result = await generate({ configPath: flags.config, only });
-    console.log(`✓ spec   ${result.specPath}`);
+    if (result.specPath) console.log(`✓ spec   ${result.specPath}`);
+    if (result.yamlPath) console.log(`✓ spec   ${result.yamlPath}`);
     if (result.docsPath) console.log(`✓ docs   ${result.docsPath}`);
     if (result.sdkDir) console.log(`✓ sdk    ${result.sdkDir}`);
   } catch (err) {
-    console.error(`✗ ${err instanceof Error ? err.message : String(err)}`);
-    process.exitCode = 1;
+    fail(err);
   }
 }
 
@@ -64,6 +76,19 @@ program
   .description('Serve live docs built from the registry')
   .option('-c, --config <path>', 'path to config file')
   .option('-p, --port <port>', 'port', '4000')
-  .action((opts: ServeFlags) => serve({ configPath: opts.config, port: Number(opts.port) }));
+  .action(async (opts: ServeFlags) => {
+    const port = Number(opts.port);
+    if (!Number.isInteger(port) || port < 0 || port > 65535) {
+      fail(new Error(`Invalid --port "${opts.port ?? ''}": expected a port number.`));
+      return;
+    }
+    try {
+      await serve({ configPath: opts.config, port });
+    } catch (err) {
+      // Without this the rejection escapes `parseAsync` as an unhandled
+      // rejection and prints a raw stack trace.
+      fail(err);
+    }
+  });
 
-void program.parseAsync(process.argv);
+program.parseAsync(process.argv).catch(fail);

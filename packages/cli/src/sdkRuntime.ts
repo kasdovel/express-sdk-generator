@@ -50,9 +50,22 @@ const fetchTransport: Transport = async (req) => {
   if (req.body !== undefined) init.body = JSON.stringify(req.body);
   const res = await fetchImpl(req.url, init);
   const text = await res.text();
-  const data = text.length ? JSON.parse(text) : undefined;
-  return { status: res.status, data };
+  return { status: res.status, data: parseBody(text) };
 };
+
+/**
+ * Parse a response body as JSON, falling back to the raw text. A gateway or
+ * proxy that answers with HTML must still surface as \`ApiError(status)\`, not as
+ * a \`SyntaxError\` from \`JSON.parse\`.
+ */
+function parseBody(text: string): unknown {
+  if (!text.length) return undefined;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
 
 export interface ClientOptions {
   /** Override the base URL baked in at generation time. */
@@ -123,12 +136,21 @@ export abstract class BaseClient {
     responseSchema: z.ZodType<T>,
     options: RequestOptions = {},
   ): Promise<T> {
-    const path = pathTemplate.replace(/\\{(\\w+)\\}/g, (_m, key) =>
-      encodeURIComponent(String(args.params?.[key])),
-    );
+    const path = pathTemplate.replace(/\\{(\\w+)\\}/g, (_m, key) => {
+      const value = args.params?.[key];
+      if (value === undefined || value === null) {
+        throw new Error(
+          \`Missing path parameter "\${key}" for \${method} \${pathTemplate}.\`,
+        );
+      }
+      return encodeURIComponent(String(value));
+    });
     const url = this.baseUrl + path + buildQuery(args.query);
 
-    const headers: Record<string, string> = { ...this.defaultHeaders };
+    const headers: Record<string, string> = {
+      accept: 'application/json',
+      ...this.defaultHeaders,
+    };
     if (args.body !== undefined) headers['content-type'] = 'application/json';
     Object.assign(headers, args.headers, options.headers);
 

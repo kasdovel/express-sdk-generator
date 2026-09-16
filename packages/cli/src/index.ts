@@ -3,7 +3,7 @@ export type { SdkgenConfig, SpecConfig, DocsConfig, SdkConfig } from './config.j
 
 export { loadConfig, loadRegistry } from './load.js';
 export { emitSpec } from './emitSpec.js';
-export type { EmitSpecResult } from './emitSpec.js';
+export type { EmitSpecOptions, EmitSpecResult } from './emitSpec.js';
 export { emitDocs } from './emitDocs.js';
 export { emitSdk } from './emitSdk.js';
 export { generate } from './generate.js';
