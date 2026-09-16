@@ -2,7 +2,7 @@ import { Router } from 'express';
 import type { IRouter } from 'express';
 import type { z } from 'zod';
 import { type Registry, registry as globalRegistry } from './registry.js';
-import { registerRoute, type CreateRouteConfig } from './createRoute.js';
+import { registerRoute, type CreateRouteConfig, type ResponsesInput } from './createRoute.js';
 import { joinPaths } from './path.js';
 
 export interface ApiRouterOptions {
@@ -47,7 +47,8 @@ export class ApiRouter {
     Q extends z.ZodTypeAny | undefined = undefined,
     B extends z.ZodTypeAny | undefined = undefined,
     H extends z.ZodTypeAny | undefined = undefined,
-  >(config: CreateRouteConfig<P, Q, B, H>): this {
+    R extends ResponsesInput = ResponsesInput,
+  >(config: CreateRouteConfig<P, Q, B, H, R>): this {
     registerRoute(
       this.express,
       config,
