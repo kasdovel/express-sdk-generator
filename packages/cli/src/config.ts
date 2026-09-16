@@ -1,6 +1,7 @@
 import { resolve } from 'node:path';
 import { existsSync } from 'node:fs';
 import type {
+  DocumentInfo,
   OpenApiVersion,
   SecurityRequirement,
   SecurityScheme,
@@ -65,6 +66,24 @@ export interface SdkgenConfig {
   spec: SpecConfig;
   docs?: DocsConfig;
   sdk?: SdkConfig;
+}
+
+/**
+ * Map the config's spec section onto what `buildDocument` wants. Every caller
+ * that builds a document (`emitSpec`, `serve`, `check`) goes through here, so a
+ * new spec option can never reach one of them and silently miss the others.
+ */
+export function documentInfo(spec: SpecConfig): DocumentInfo {
+  return {
+    title: spec.title,
+    version: spec.version,
+    description: spec.description,
+    openapi: spec.openapi,
+    servers: spec.servers,
+    validationErrors: spec.validationErrors,
+    securitySchemes: spec.securitySchemes,
+    security: spec.security,
+  };
 }
 
 /** Identity helper for type-safe config files. */

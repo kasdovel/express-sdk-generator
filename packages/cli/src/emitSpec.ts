@@ -2,7 +2,7 @@ import { writeFile, mkdir } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { stringify as toYaml } from 'yaml';
 import { buildDocument, type Registry } from '@kasdovel/express-sdkgen-core';
-import type { SpecConfig } from './config.js';
+import { documentInfo, type SpecConfig } from './config.js';
 
 export interface EmitSpecOptions {
   /**
@@ -75,13 +75,7 @@ export async function emitSpec(
   cwd: string,
   options: EmitSpecOptions = {},
 ): Promise<EmitSpecResult> {
-  const document = buildDocument(registry, {
-    title: spec.title,
-    version: spec.version,
-    description: spec.description,
-    openapi: spec.openapi,
-    servers: spec.servers,
-  });
+  const document = buildDocument(registry, documentInfo(spec));
 
   if (options.write === false) return { document };
 

@@ -6,7 +6,7 @@ import {
 } from '@asteasolutions/zod-to-openapi';
 import { z } from 'zod';
 import type { Registry } from './registry.js';
-import type { RouteDef, SecurityRequirement, SecurityScheme } from './types.js';
+import type { RequestSchemas, RouteDef, SecurityRequirement, SecurityScheme } from './types.js';
 import { toOpenApiPath } from './path.js';
 import { BODYLESS_STATUSES } from './respond.js';
 import { VALIDATION_ERROR_SCHEMA_NAME, ValidationErrorSchema } from './validationError.js';
@@ -148,7 +148,43 @@ function registerValidationError(
     (route) => hasRequestSchemas(route) && route.responses[400] === undefined,
   );
   if (!needed) return undefined;
+  assertNameIsFree(registry);
   return oapi.register(VALIDATION_ERROR_SCHEMA_NAME, ValidationErrorSchema);
+}
+
+/** The name a schema was tagged with via `.openapi('Name')`, if any. */
+function refIdOf(schema: z.ZodTypeAny): string | undefined {
+  const meta = (schema._def as { openapi?: { _internal?: { refId?: string } } }).openapi;
+  return meta?._internal?.refId;
+}
+
+/**
+ * A user schema tagged `.openapi('ValidationError')` would share a component
+ * name with the one generated here, and the last registration silently wins —
+ * so one of the two responses would end up documented with the other's shape.
+ * That is the exact failure this library exists to prevent, so refuse instead.
+ */
+function assertNameIsFree(registry: Registry): void {
+  for (const route of registry.routes) {
+    const request: RequestSchemas = route.request ?? {};
+    const schemas: (z.ZodTypeAny | undefined)[] = [
+      ...Object.values(route.responses).map((r) => r.schema),
+      request.params,
+      request.query,
+      request.body,
+      request.headers,
+    ];
+    for (const schema of schemas) {
+      if (schema && refIdOf(schema) === VALIDATION_ERROR_SCHEMA_NAME) {
+        throw new Error(
+          `Schema tagged .openapi("${VALIDATION_ERROR_SCHEMA_NAME}") in ` +
+            `${route.method.toUpperCase()} ${route.path} collides with the component this ` +
+            'library generates for the request-validation 400. Rename your schema, or set ' +
+            '`validationErrors: false` to stop documenting that response.',
+        );
+      }
+    }
+  }
 }
 
 /** Build an OpenAPI document object from a populated Registry. */

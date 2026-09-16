@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { dirname } from 'node:path';
 import { loadConfig } from './load.js';
 import { reloadRegistry } from './reload.js';
-import { resolveConfigPath, type SdkgenConfig } from './config.js';
+import { documentInfo, resolveConfigPath, type SdkgenConfig } from './config.js';
 import { buildDocument } from '@kasdovel/express-sdkgen-core';
 import { escapeHtml } from './emitDocs.js';
 import { watchSources } from './watch.js';
@@ -57,13 +57,7 @@ async function buildOnce(config: SdkgenConfig, configPath: string): Promise<Buil
     const registry = await reloadRegistry(config, configPath);
     return {
       ok: true,
-      document: buildDocument(registry, {
-        title: config.spec.title,
-        version: config.spec.version,
-        description: config.spec.description,
-        openapi: config.spec.openapi,
-        servers: config.spec.servers,
-      }),
+      document: buildDocument(registry, documentInfo(config.spec)),
     };
   } catch (err) {
     return { ok: false, message: err instanceof Error ? err.message : String(err) };

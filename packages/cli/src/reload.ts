@@ -20,10 +20,7 @@ let previous: Registry | undefined;
  * — and clearing unconditionally also keeps two projects loaded back to back
  * (as in the test suite) from piling into the same global registry.
  */
-export async function reloadRegistry(
-  config: SdkgenConfig,
-  configPath: string,
-): Promise<Registry> {
+export async function reloadRegistry(config: SdkgenConfig, configPath: string): Promise<Registry> {
   const snapshot = previous?.routes.splice(0);
 
   const registry = await loadRegistry(config, configPath);

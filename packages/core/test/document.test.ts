@@ -281,3 +281,48 @@ describe('bodyless statuses', () => {
     expect(del.responses['205']!.description).toBe('Reset Content');
   });
 });
+
+describe('ValidationError component name', () => {
+  it('refuses a user schema that would silently take the generated name', () => {
+    const registry = createRegistry();
+    const router = express.Router();
+    createRoute(router, {
+      method: 'get',
+      path: '/things/:id',
+      operationId: 'getThing',
+      request: { params: z.object({ id: z.string() }) },
+      responses: { 200: z.object({ mine: z.boolean() }).openapi('ValidationError') },
+      registry,
+      handler: (_req, res) => {
+        res.json({ mine: true });
+      },
+    });
+
+    expect(() => buildDocument(registry, { title: 'T', version: '1' })).toThrow(
+      /collides with the component this library generates/,
+    );
+  });
+
+  it('leaves the name alone when the generated 400 is switched off', () => {
+    const registry = createRegistry();
+    const router = express.Router();
+    createRoute(router, {
+      method: 'get',
+      path: '/things/:id',
+      operationId: 'getThing',
+      request: { params: z.object({ id: z.string() }) },
+      responses: { 200: z.object({ mine: z.boolean() }).openapi('ValidationError') },
+      registry,
+      handler: (_req, res) => {
+        res.json({ mine: true });
+      },
+    });
+
+    const doc = buildDocument(registry, {
+      title: 'T',
+      version: '1',
+      validationErrors: false,
+    }) as { components: { schemas: Record<string, { properties?: Record<string, unknown> }> } };
+    expect(doc.components.schemas.ValidationError?.properties).toHaveProperty('mine');
+  });
+});

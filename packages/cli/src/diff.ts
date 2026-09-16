@@ -11,6 +11,21 @@
 /** Files larger than this (after trimming the common head and tail) are summarized. */
 const MAX_DIFF_LINES = 1200;
 
+/**
+ * Longest line printed before it is elided. A generated docs page inlines the
+ * whole spec on one line; dumping that into a terminal buries the change it is
+ * supposed to show.
+ */
+const MAX_LINE_WIDTH = 160;
+
+/** Shorten an over-long diff line, keeping both ends so the change stays visible. */
+function elide(line: string): string {
+  if (line.length <= MAX_LINE_WIDTH) return line;
+  const keep = Math.floor((MAX_LINE_WIDTH - 20) / 2);
+  const hidden = line.length - keep * 2;
+  return `${line.slice(0, keep)} …${String(hidden)} chars… ${line.slice(-keep)}`;
+}
+
 export interface DiffOptions {
   /** Unchanged lines kept around each hunk. Default 3. */
   context?: number;
@@ -117,7 +132,7 @@ function toHunks(ops: Op[], context: number): Hunk[] {
       aCount: slice.filter((op) => op.kind !== '+').length,
       bStart: bLine[from] ?? 1,
       bCount: slice.filter((op) => op.kind !== '-').length,
-      lines: slice.map((op) => op.kind + op.text),
+      lines: slice.map((op) => elide(op.kind + op.text)),
     });
     index = end + 1;
   }

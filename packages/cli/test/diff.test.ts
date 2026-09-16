@@ -52,3 +52,16 @@ describe('unifiedDiff', () => {
     expect(diff[0]).toContain('diff suppressed');
   });
 });
+
+describe('long lines', () => {
+  it('elides a line too wide for a terminal instead of dumping it', () => {
+    const before = `a\n${'x'.repeat(4000)}\nb`;
+    const after = `a\n${'y'.repeat(4000)}\nb`;
+    const lines = unifiedDiff(before, after);
+
+    for (const line of lines) expect(line.length).toBeLessThan(200);
+    // Both ends of the change survive, so the diff still shows what moved.
+    expect(lines.some((l) => l.startsWith('-x') && l.includes('chars…'))).toBe(true);
+    expect(lines.some((l) => l.startsWith('+y'))).toBe(true);
+  });
+});
