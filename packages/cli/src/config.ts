@@ -1,6 +1,11 @@
 import { resolve } from 'node:path';
 import { existsSync } from 'node:fs';
-import type { OpenApiVersion } from '@kasdovel/express-sdkgen-core';
+import type {
+  DocumentInfo,
+  OpenApiVersion,
+  SecurityRequirement,
+  SecurityScheme,
+} from '@kasdovel/express-sdkgen-core';
 
 export interface SpecConfig {
   /** Output path for the spec. Default `openapi.json`. */
@@ -11,7 +16,19 @@ export interface SpecConfig {
   description?: string;
   /** Also write a YAML copy next to the JSON. */
   yaml?: boolean;
+  /** Explicit path for the YAML copy. Defaults to `out` with a `.yaml` extension. */
+  yamlOut?: string;
+  /**
+   * Document the 400 response that request-validation middleware can emit for
+   * any route declaring `request` schemas. Default `true`; turn it off if your
+   * app replaces the default error envelope.
+   */
+  validationErrors?: boolean;
   servers?: { url: string; description?: string }[];
+  /** Named security schemes, emitted as `components.securitySchemes`. */
+  securitySchemes?: Record<string, SecurityScheme>;
+  /** Document-wide default security requirement; routes can override it. */
+  security?: SecurityRequirement[];
 }
 
 export interface DocsConfig {
@@ -34,6 +51,11 @@ export interface SdkConfig {
   baseUrl?: string;
   /** Generated client class name. Default `ApiClient`. */
   className?: string;
+  /**
+   * Parse arguments through the operation's request schemas before sending, so
+   * a bad call fails locally instead of as a 400. Default `false`.
+   */
+  validateRequests?: boolean;
 }
 
 export interface SdkgenConfig {
@@ -44,6 +66,24 @@ export interface SdkgenConfig {
   spec: SpecConfig;
   docs?: DocsConfig;
   sdk?: SdkConfig;
+}
+
+/**
+ * Map the config's spec section onto what `buildDocument` wants. Every caller
+ * that builds a document (`emitSpec`, `serve`, `check`) goes through here, so a
+ * new spec option can never reach one of them and silently miss the others.
+ */
+export function documentInfo(spec: SpecConfig): DocumentInfo {
+  return {
+    title: spec.title,
+    version: spec.version,
+    description: spec.description,
+    openapi: spec.openapi,
+    servers: spec.servers,
+    validationErrors: spec.validationErrors,
+    securitySchemes: spec.securitySchemes,
+    security: spec.security,
+  };
 }
 
 /** Identity helper for type-safe config files. */

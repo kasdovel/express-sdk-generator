@@ -3,7 +3,7 @@
  *
  * Acceptance criteria (issue #11):
  * 1. `pnpm pack --dry-run` succeeds for both packages
- * 2. No source files (outside dist/, package.json, README.md, LICENSE) are included
+ * 2. No source files (outside dist/, bin/, package.json, README.md, LICENSE) are included
  * 3. CJS and ESM imports of built dist outputs succeed without resolution errors
  */
 import { describe, it, expect } from 'vitest';
@@ -18,10 +18,12 @@ const PACKAGES = [
 ] as const;
 
 /**
- * Allowed top-level entries in the tarball.
- * Everything must live under `dist/`, or be one of the metadata files.
+ * Allowed top-level entries in the tarball. Everything must live under `dist/`
+ * (build output) or `bin/` (the committed `sdkgen` launcher stub, which has to
+ * exist before install time so the bin link is always created), or be one of
+ * the metadata files.
  */
-const ALLOWED_TOP_LEVEL = new Set(['dist', 'package.json', 'README.md', 'LICENSE']);
+const ALLOWED_TOP_LEVEL = new Set(['dist', 'bin', 'package.json', 'README.md', 'LICENSE']);
 
 interface PackFile {
   path: string;
@@ -55,7 +57,7 @@ describe('AC-1: pnpm pack --dry-run succeeds', () => {
 });
 
 // ─── AC 2: No source files leak into the tarball ───────────────────────────
-describe('AC-2: No source files outside dist/, package.json, README.md, LICENSE', () => {
+describe('AC-2: No source files outside dist/, bin/, package.json, README.md, LICENSE', () => {
   for (const pkg of PACKAGES) {
     it(`${pkg.name}: only allowed files are included`, () => {
       const result = packDryRun(pkg.dir);

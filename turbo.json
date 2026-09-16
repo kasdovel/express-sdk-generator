@@ -6,17 +6,21 @@
       "outputs": ["dist/**"]
     },
     "typecheck": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build", "gen"]
     },
     "test": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build", "gen"]
     },
     "lint": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build", "gen"]
     },
     "dev": {
       "cache": false,
       "persistent": true
+    },
+    "gen": {
+      "dependsOn": ["^build"],
+      "outputs": ["openapi.json", "openapi.yaml", "docs/**", "sdk/**"]
     }
   }
 }

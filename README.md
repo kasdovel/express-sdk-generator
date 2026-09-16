@@ -71,10 +71,23 @@ export default defineConfig({
 ### 4. Generate
 
 ```bash
+sdkgen init         # scaffold a config and a side-effect-free entry
 sdkgen gen all      # spec + docs + sdk
 sdkgen gen spec     # just the OpenAPI spec
 sdkgen gen sdk      # just the SDK
-sdkgen serve        # live docs preview
+sdkgen gen all -w   # regenerate whenever a route changes
+sdkgen check        # fail if the committed artifacts are stale
+sdkgen serve        # live docs preview, reloads on change
+```
+
+### Keeping it honest in CI
+
+Nothing stops someone editing a route and committing without regenerating, so
+`check` turns "no drift" from a claim into a gate. It regenerates everything and
+compares against what is committed, printing what differs and exiting non-zero:
+
+```yaml
+- run: npx sdkgen check
 ```
 
 The generated docs HTML always inlines the OpenAPI spec. By default the Swagger/Redoc UI
@@ -119,6 +132,95 @@ const api = new ApiClient({
 The default transport uses native `fetch`. Whatever the transport, the SDK owns the rest:
 it merges headers, turns a non-2xx `status` into `ApiError`, and always validates the response
 against the route's Zod schema — so server/SDK drift throws instead of silently mis-typing.
+A non-2xx body that isn't JSON (a proxy's HTML error page, say) still arrives as
+`ApiError(status, body)` with the raw text, never as a JSON parse error.
+
+Every emitted file starts with `/* eslint-disable */` and an `@generated` marker: the SDK is
+build output, meant to be regenerated and committed, not hand-edited.
+
+#### Typed errors
+
+The error responses a route declares are generated too, so a caught `ApiError`
+narrows to the shape the route promised for that status:
+
+```ts
+import { isApiError } from './sdk';
+
+try {
+  await api.getUser({ params: { id } });
+} catch (err) {
+  if (isApiError(err, 404)) err.body.error; // typed from the route's 404 schema
+  if (isApiError(err, 400)) err.body.issues; // the ValidationError body, documented below
+}
+```
+
+#### Status and headers
+
+Each operation also gets a `…WithResponse` sibling when you need more than the body —
+pagination headers, `ETag`, rate limits:
+
+```ts
+const { status, headers, data } = await api.listUsersWithResponse();
+```
+
+#### Validating arguments before sending
+
+Set `sdk: { validateRequests: true }` and the client parses arguments through the
+operation's own schemas before the request leaves, so a bad call fails locally with a
+`ZodError` instead of as a 400 — and declared defaults and coercions apply client-side.
+
+### Catching response drift on the server
+
+The SDK validates responses in the _consumer's_ process, which is the last place you want to
+find out. `res.valid` checks a payload against the schema the route declared before it goes
+out, so drift fails in your own test suite instead:
+
+```ts
+createRoute(router, {
+  method: 'get',
+  path: '/users/:id',
+  operationId: 'getUser',
+  request: { params: z.object({ id: z.string() }) },
+  responses: { 200: User, 404: ErrorBody },
+  handler: (req, res) => {
+    const user = findUser(req.valid.params.id);
+    if (!user) return res.valid(404, { error: 'User not found' });
+    res.valid(200, user); // throws if `user` does not match `User`
+  },
+});
+```
+
+The status argument is narrowed to the codes the route declares and the payload to that
+status's schema, so an undeclared status or a wrong shape is a compile error too. Validation
+runs outside production by default (`validateResponses` overrides it per route), and `res.json`
+is untouched.
+
+### The validation 400 is documented for you
+
+`createRoute` already answers `400 { error: 'ValidationError', part, issues }` whenever a
+request fails its schemas. That response is now in the spec as well, on every route declaring
+a `request` schema, referencing a shared `ValidationError` component — the body the server
+sends and the body the spec promises come from one Zod schema, so they cannot drift apart. A
+route that declares its own 400 keeps it; `spec: { validationErrors: false }` turns the whole
+thing off.
+
+### Declaring authentication
+
+Routes can say what they require, so the spec carries `securitySchemes`, the docs get an
+"Authorize" button, and the SDK's consumers can see it:
+
+```ts
+// sdkgen.config.ts
+spec: {
+  securitySchemes: { bearer: { type: 'http', scheme: 'bearer' } },
+  security: [{ bearer: [] }], // document-wide default
+}
+
+// a route that opts out
+createRoute(router, { /* … */ security: [], handler });
+```
+
+This is declaration only — sdkgen does not issue or verify tokens.
 
 ### Nested routers
 
@@ -170,5 +272,8 @@ pnpm install
 pnpm build        # turbo: build core then cli
 pnpm test         # all package + example tests
 ```
+
+`pnpm test` works from a clean clone: turbo builds the packages and regenerates the example's
+SDK (`gen`) before anything compiles against it.
 
 See [`examples/api`](examples/api) for a complete working app and its e2e test.

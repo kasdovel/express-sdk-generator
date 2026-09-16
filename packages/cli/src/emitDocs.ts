@@ -14,6 +14,15 @@ async function readPackageFile(pkg: string, ...rel: string[]): Promise<string> {
   return readFile(join(pkgRoot, ...rel), 'utf8');
 }
 
+/** Escape text interpolated into HTML markup (e.g. a configured title). */
+export function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 /** Escape `</script>` so an inlined spec can't break out of the script tag. */
 function inlineJson(doc: object): string {
   return JSON.stringify(doc).replace(/</g, '\\u003c');
@@ -35,7 +44,7 @@ function swaggerHead(title: string, assets?: SwaggerAssets): string {
     : `  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@${SWAGGER_VERSION}/swagger-ui.css" />`;
   return `  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>${title}</title>
+  <title>${escapeHtml(title)}</title>
 ${style}`;
 }
 
@@ -71,7 +80,7 @@ function redocHtml(doc: object, title: string, js?: string): string {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>${title}</title>
+  <title>${escapeHtml(title)}</title>
 </head>
 <body>
   <div id="redoc"></div>

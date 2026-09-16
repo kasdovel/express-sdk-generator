@@ -1,6 +1,7 @@
 import type { Request, RequestHandler, Response, NextFunction } from 'express';
 import type { z } from 'zod';
 import type { RequestSchemas } from './types.js';
+import { VALIDATION_ERROR_SCHEMA_NAME, type ValidationErrorBody } from './validationError.js';
 
 /** Which part of the request failed validation. */
 export type RequestPart = 'params' | 'query' | 'body' | 'headers';
@@ -26,12 +27,23 @@ export interface ValidatedData {
   headers: unknown;
 }
 
-function defaultOnError(failure: ValidationFailure, _req: Request, res: Response): void {
-  res.status(400).json({
-    error: 'ValidationError',
+/**
+ * Build the default 400 body. Typing the return as `ValidationErrorBody` is what
+ * keeps this in step with the `ValidationError` component `document.ts` puts in
+ * the spec: both are derived from `ValidationErrorSchema`, so a change to the
+ * schema breaks this function's compile rather than silently shipping a spec
+ * that lies about the server's own error response.
+ */
+export function validationErrorBody(failure: ValidationFailure): ValidationErrorBody {
+  return {
+    error: VALIDATION_ERROR_SCHEMA_NAME,
     part: failure.part,
     issues: failure.issues,
-  });
+  };
+}
+
+function defaultOnError(failure: ValidationFailure, _req: Request, res: Response): void {
+  res.status(400).json(validationErrorBody(failure));
 }
 
 const PART_SOURCES: RequestPart[] = ['params', 'query', 'body', 'headers'];

@@ -28,13 +28,19 @@ pnpm --filter @example/api exec vitest run -t "404"
 
 # Run the generator against the example app, then preview
 pnpm --filter @example/api gen          # = sdkgen gen all
+pnpm --filter @example/api exec sdkgen check      # fail if artifacts are stale
 pnpm --filter @example/api exec sdkgen gen spec   # one artifact only
 pnpm --filter @example/api dev          # boot example on :3000, docs at /docs
 ```
 
-Turbo caches `build`/`test`/`typecheck`. After editing `core`, rebuild before the CLI or the
-example will use stale `dist/` — `pnpm build` handles the ordering (`core#build` before
-`cli#build`).
+Turbo caches `build`/`gen`/`test`/`typecheck`/`lint`. After editing `core`, rebuild before the
+CLI or the example will use stale `dist/` — `pnpm build` handles the ordering (`core#build`
+before `cli#build`). `test`/`typecheck`/`lint` depend on `gen`, so `pnpm test` on a clean
+clone regenerates the example's SDK before compiling against it.
+
+The `sdkgen` bin is a committed stub (`packages/cli/bin/sdkgen.mjs`) that forwards to
+`dist/bin.js`. It exists so package managers can always create the `node_modules/.bin` link at
+install time, when `dist/` has not been built yet.
 
 ## Architecture
 
@@ -74,6 +80,20 @@ Key invariants to preserve when editing:
 - **The Entry must be side-effect-free** (no `app.listen`, no DB connect). The CLI imports it
   in-process via jiti. The example's pattern: `src/openapi.ts` imports `./routes.js` (to
   populate the global registry) then re-exports `registry` from `@kasdovel/express-sdkgen-core`.
+- **The 400 the validation middleware answers with is documented from one schema.**
+  `core/validationError.ts` owns `ValidationErrorSchema`; `validate.ts`'s default `onError`
+  builds its payload as that type (so `tsc` catches divergence) and `document.ts` registers the
+  same schema as the shared `ValidationError` component. Never let those two drift apart — a
+  user schema tagged `.openapi('ValidationError')` is rejected for the same reason.
+- **`res.valid(status, payload)` validates a response before it is sent** (`core/respond.ts`),
+  typed from the route's `responses` map via the `R` generic on `CreateRouteConfig`. On outside
+  production; `res.json` stays untouched.
+- **Registration fails loudly on anything that would silently drift.** `Registry.add` rejects
+  a non-identifier `operationId` (it becomes an SDK method name), a duplicate `operationId`,
+  and a second operation on the same method + path (OpenAPI keys operations by path + method,
+  so it would overwrite the first). `registerRoute` rejects a `:param` in the path that
+  `request.params` does not declare — otherwise the spec carries no parameter and the SDK
+  requests `/users/undefined`.
 - **`createRoute` records the literal path; it can't see mount prefixes.** For a router
   mounted under a prefix, use the prefix-aware `router(prefix)` (`core/router.ts`, type
   `ApiRouter`) so the registry gets the full path while Express routes by the local path —
@@ -98,8 +118,19 @@ The SDK is generated **from the registry/document, not by running a standard Ope
   operation's Zod schema before returning, so server/SDK drift throws.
 
 `jsonSchemaToZod.ts` covers the structural subset (objects, arrays, primitives, enums, unions,
-`$ref`, nullability, string formats). Zod refinements/transforms do not round-trip through
-JSON Schema — that's an accepted limitation, not a bug.
+`$ref` including cycles via `z.lazy()`, nullability, numeric/array constraints, string formats)
+and emits a `// sdkgen: unsupported …` comment where a keyword cannot be represented, so the
+loss shows up in the diff. Zod refinements/transforms do not round-trip through JSON Schema —
+that's an accepted limitation, not a bug.
+
+`emitSdk.ts` also emits declared error bodies (`isApiError(err, 404)` narrows `err.body`), a
+`…WithResponse` sibling per operation for `{ status, headers, data }`, and — under
+`sdk.validateRequests` — argument parsing before the request leaves. Repeated shapes are hoisted
+into shared consts: a `$ref`ed schema keeps its component name, an untagged repeat gets a
+content-derived `Shared<hash>` name that is stable across runs.
+
+`check.ts` regenerates every configured artifact into a temp directory and diffs it against
+what is committed (`diff.ts`), which is what makes zero-drift enforceable in CI.
 
 ## Conventions
 

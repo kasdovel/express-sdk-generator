@@ -8,3 +8,6 @@ examples/*/openapi.json
 examples/*/openapi.yaml
 examples/*/docs/
 examples/*/sdk/
+
+# Worktrees created by Claude Code agents (live checkouts, never committed)
+.claude/worktrees/

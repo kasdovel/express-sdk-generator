@@ -1,5 +1,4 @@
 import { router } from '@kasdovel/express-sdkgen-core';
-import { z } from 'zod';
 import * as S from './schemas.js';
 
 // Demonstrates nested routers: `accounts` is mounted at /accounts, and an
@@ -13,7 +12,7 @@ accounts.route({
   path: '/',
   operationId: 'listAccounts',
   tags: ['accounts'],
-  responses: { 200: z.array(S.User) },
+  responses: { 200: S.UserList },
   handler: (_req, res) => {
     res.json([]);
   },
