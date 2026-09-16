@@ -3,6 +3,7 @@ import type { z } from 'zod';
 import type { Method, ResponseDef, RouteDef } from './types.js';
 import { type Registry, registry as globalRegistry } from './registry.js';
 import { validateRequest, type ValidationOptions, type ValidatedData } from './validate.js';
+import { pathParamNames } from './path.js';
 
 type Infer<S> = S extends z.ZodTypeAny ? z.infer<S> : unknown;
 
@@ -63,6 +64,56 @@ function normalizeResponses(responses: Record<number, ResponseInput>): Record<nu
 }
 
 /**
+ * Keys of a Zod object schema, or `undefined` if the schema is not a plain
+ * object (e.g. wrapped in `.refine()`), in which case we cannot introspect it.
+ */
+function objectKeys(schema: z.ZodTypeAny | undefined): string[] | undefined {
+  const shape: unknown = (schema as { shape?: unknown } | undefined)?.shape;
+  if (!shape || typeof shape !== 'object') return undefined;
+  return Object.keys(shape);
+}
+
+function quoteList(names: string[]): string {
+  return names.map((n) => `":${n}"`).join(', ');
+}
+
+/**
+ * A `:param` in the path that no `request.params` schema declares never reaches
+ * the spec, so the generated SDK has no argument to fill that URL segment and
+ * silently requests `/users/undefined`. Fail at registration instead.
+ */
+function assertPathParamsDeclared(route: RouteDef): void {
+  const declared = pathParamNames(route.path);
+  if (declared.length === 0) return;
+
+  const at = `${route.method.toUpperCase()} ${route.path} (operationId "${route.operationId}")`;
+  const suggestion = `request: { params: z.object({ ${declared
+    .map((n) => `${n}: z.string()`)
+    .join(', ')} }) }`;
+
+  const keys = objectKeys(route.request?.params);
+  if (keys === undefined) {
+    // No schema at all is an error; a non-introspectable schema we have to trust.
+    if (route.request?.params) return;
+    throw new Error(
+      `${at} declares path parameter${declared.length > 1 ? 's' : ''} ${quoteList(declared)} ` +
+        `but has no "request.params" schema. Add \`${suggestion}\` — without it the OpenAPI ` +
+        'spec documents no parameter and the generated SDK cannot fill the URL.',
+    );
+  }
+
+  const missing = declared.filter((name) => !keys.includes(name));
+  if (missing.length > 0) {
+    throw new Error(
+      `${at} declares path parameter${missing.length > 1 ? 's' : ''} ${quoteList(missing)} ` +
+        `that "request.params" does not describe (it has: ${
+          keys.length ? keys.map((k) => `"${k}"`).join(', ') : 'no keys'
+        }). Add ${missing.length > 1 ? 'them' : 'it'} so the spec and SDK carry the parameter.`,
+    );
+  }
+}
+
+/**
  * Register one route on an Express router. In a single call this:
  *  1. records the operation (with real Zod schemas) into the registry,
  *  2. installs request-validation middleware that 400s on a bad request,
@@ -105,6 +156,7 @@ export function registerRoute<
     request: config.request,
     responses: normalizeResponses(config.responses),
   };
+  assertPathParamsDeclared(route);
   registry.add(route);
 
   const validator = validateRequest(config.request, config.validation);

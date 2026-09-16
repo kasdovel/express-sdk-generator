@@ -7,7 +7,9 @@ import {
   buildDocument,
   validateRequest,
   router as apiRouter,
+  serveDocs,
 } from '../src/index.js';
+import type { Server } from 'node:http';
 
 describe('createRoute + registry', () => {
   it('records the operation into the registry', () => {
@@ -26,6 +28,68 @@ describe('createRoute + registry', () => {
     });
     expect(registry.routes).toHaveLength(1);
     expect(registry.routes[0]!.operationId).toBe('getThing');
+  });
+
+  it('rejects an operationId that is not a valid JS identifier', () => {
+    const registry = createRegistry();
+    const router = express.Router();
+    expect(() =>
+      createRoute(router, {
+        method: 'get',
+        path: '/a',
+        operationId: 'get-user',
+        responses: { 200: z.string() },
+        registry,
+        handler: (_req, res) => {
+          res.json(1);
+        },
+      }),
+    ).toThrow(/Invalid operationId/);
+  });
+
+  it('rejects two operations on the same method + path', () => {
+    const registry = createRegistry();
+    const router = express.Router();
+    const def = {
+      method: 'get' as const,
+      path: '/things',
+      responses: { 200: z.string() },
+      registry,
+      handler: (_req: unknown, res: { json: (v: unknown) => void }) => res.json(1),
+    };
+    createRoute(router, { ...def, operationId: 'listThings' });
+    expect(() => createRoute(router, { ...def, operationId: 'alsoListThings' })).toThrow(
+      /Duplicate route GET \/things/,
+    );
+  });
+
+  it('rejects a path parameter that request.params does not declare', () => {
+    const registry = createRegistry();
+    const router = express.Router();
+    const handler = (_req: unknown, res: { json: (v: unknown) => void }) => res.json(1);
+
+    expect(() =>
+      createRoute(router, {
+        method: 'get',
+        path: '/things/:id',
+        operationId: 'getThingNoParams',
+        responses: { 200: z.string() },
+        registry,
+        handler,
+      }),
+    ).toThrow(/no "request.params" schema/);
+
+    expect(() =>
+      createRoute(router, {
+        method: 'get',
+        path: '/things/:id/parts/:partId',
+        operationId: 'getPart',
+        request: { params: z.object({ id: z.string() }) },
+        responses: { 200: z.string() },
+        registry,
+        handler,
+      }),
+    ).toThrow(/":partId"/);
   });
 
   it('rejects duplicate operationIds', () => {
@@ -135,5 +199,45 @@ describe('validateRequest', () => {
     });
     expect(nexted).toBe(true);
     expect((okReq.valid as { body: { n: number } }).body.n).toBe(42);
+  });
+});
+
+describe('serveDocs', () => {
+  it('serves routes registered after it was mounted', async () => {
+    const registry = createRegistry();
+    const app = express();
+    await serveDocs(app, { registry, title: 'Live', version: '1.0.0' });
+
+    // Registered *after* serveDocs — a router mounted later in the file, say.
+    createRoute(app, {
+      method: 'get',
+      path: '/late',
+      operationId: 'late',
+      responses: { 200: z.string() },
+      registry,
+      handler: (_req, res) => {
+        res.json('ok');
+      },
+    });
+
+    let server: Server | undefined;
+    try {
+      server = await new Promise<Server>((resolve) => {
+        const s = app.listen(0, () => resolve(s));
+      });
+      const addr = server.address();
+      const port = typeof addr === 'object' && addr ? addr.port : 0;
+
+      const spec = (await (await fetch(`http://localhost:${port}/docs.json`)).json()) as {
+        paths: Record<string, unknown>;
+      };
+      expect(Object.keys(spec.paths)).toContain('/late');
+
+      const ui = await fetch(`http://localhost:${port}/docs/`);
+      expect(ui.status).toBe(200);
+      expect(await ui.text()).toContain('swagger-ui');
+    } finally {
+      server?.close();
+    }
   });
 });
