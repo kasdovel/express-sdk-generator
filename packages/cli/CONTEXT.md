@@ -27,3 +27,7 @@ _Avoid_: Client library, bindings, stubs
 **Drift**:
 Any divergence between what the API actually does and what the Spec/SDK describe. The design goal is structural impossibility of drift — one declaration feeds everything.
 _Avoid_: Mismatch, skew, staleness
+
+**Drift gate**:
+The `check` command: regenerate every Artifact into a temporary directory and compare it with what is committed, failing when they differ. Turns the zero-drift design goal into something CI can enforce.
+_Avoid_: Verify, lint, diff check

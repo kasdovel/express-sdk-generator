@@ -23,7 +23,9 @@ createRoute(router, {
   responses: { 200: S.UserList },
   handler: (req, res) => {
     const limit = req.valid.query.limit ?? 50;
-    res.json([...users.values()].slice(0, limit));
+    // res.valid checks the payload against the declared 200 schema before
+    // sending, so drift fails here instead of in a consumer's process.
+    res.valid(200, [...users.values()].slice(0, limit));
   },
 });
 
@@ -38,7 +40,7 @@ createRoute(router, {
   handler: (req, res) => {
     const user: UserRecord = { id: randomUUID(), ...req.valid.body };
     users.set(user.id, user);
-    res.status(201).json(user);
+    res.valid(201, user);
   },
 });
 
@@ -53,9 +55,9 @@ createRoute(router, {
   handler: (req, res) => {
     const user = users.get(req.valid.params.id);
     if (!user) {
-      res.status(404).json({ error: 'User not found' });
+      res.valid(404, { error: 'User not found' });
       return;
     }
-    res.json(user);
+    res.valid(200, user);
   },
 });

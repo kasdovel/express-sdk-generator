@@ -75,7 +75,46 @@ Two papercuts that hit every new contributor on their first command:
 
 ---
 
-## 2. Recommended next, in priority order
+## 2. Also fixed, in a follow-up pass
+
+Everything in the original "recommended next" list below was implemented, except where noted.
+Three streams ran in parallel over disjoint files; this section records what shipped.
+
+- **`sdkgen check`** (was 2.1) — regenerates into a temp directory and diffs against what is
+  committed, printing the stale files and exiting 1. Zero-drift is now a CI gate, not a claim.
+- **The validation 400 is documented** (was 2.2) — `ValidationErrorSchema` is the single
+  definition: `validate.ts` builds its payload as that type and `document.ts` registers the same
+  schema as a shared component, so the response sent and the response promised cannot diverge
+  without breaking the compile. A schema tagged `.openapi('ValidationError')` is rejected rather
+  than silently taking the name.
+- **Declared error responses reach the SDK** (was 2.3) — `isApiError(err, 404)` narrows
+  `err.body` to the route's declared shape.
+- **Status and headers** (was 2.4) — a `…WithResponse` sibling per operation returns
+  `{ status, headers, data }`.
+- **Named, deduplicated schemas** (was 2.5) — `$ref`ed schemas keep their component name;
+  untagged repeats hoist into a content-derived `Shared<hash>` const that is stable across runs.
+- **`jsonSchemaToZod` no longer degrades silently** (was 2.6) — `$ref` cycles round-trip through
+  `z.lazy()`, the missing numeric/array keywords are covered, and anything unrepresentable emits
+  a `// sdkgen: unsupported …` comment into the generated file.
+- **Opt-in client-side request validation** (was 2.7) — `sdk: { validateRequests: true }`.
+- **`res.valid(status, payload)`** (was 2.8) — server-side response validation, typed from the
+  route's `responses` map, on outside production.
+- **Security declarations** (was 2.9) — `security` on routes, `securitySchemes` in the config.
+- **`gen --watch`, `sdkgen init`, and a `serve` that reloads on change** (was 2.10).
+- **Smaller items** (was 2.11) — 205/304 bodyless, HEAD no longer parses a body, `spec.yamlOut`,
+  formatted generated output, `.gitattributes` marking artifacts generated.
+- **Coverage** (was 2.12) — `load.ts`, `serve`, `check`, `init`, `watch` and the generated SDK
+  are all tested now; 162 tests, up from 21.
+
+One item is deliberately **not** done: the **Zod 4 migration** (part of 2.11). The emitted
+schemas use the v3 string-format API, and moving means a breaking peer-range change plus a
+`zod-to-openapi` major — its own piece of work, with its own release.
+
+A gap found while dogfooding the docs: naming a schema with `.openapi()` needs the type
+augmentation from `@asteasolutions/zod-to-openapi`, which users had no documented way to get.
+Core now re-exports `extendZodWithOpenApi`.
+
+## 3. The original recommendations, in priority order
 
 ### 2.1 `sdkgen check` — make zero-drift enforceable (highest value)
 
@@ -198,7 +237,7 @@ this product is code-generation, a snapshot test over the generated `client.ts` 
 
 ---
 
-## 3. What is working well
+## 4. What is working well
 
 - The pipeline is genuinely one-way and easy to follow: `Registry → document → {spec, docs, sdk}`.
   Every artifact derives from the same in-memory object.

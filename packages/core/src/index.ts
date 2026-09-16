@@ -27,6 +27,16 @@ export type {
 export { ValidationErrorSchema, VALIDATION_ERROR_SCHEMA_NAME } from './validationError.js';
 export type { ValidationErrorBody } from './validationError.js';
 
+/**
+ * Re-exported so naming a schema needs nothing but this package. `.openapi()`
+ * is added to Zod by `@asteasolutions/zod-to-openapi`, and while `document.ts`
+ * already applies the patch at runtime, the *types* only appear once a module
+ * carrying its `declare module 'zod'` augmentation is imported. Importing this
+ * brings both, so users get `z.object({…}).openapi('User')` without taking a
+ * direct dependency on the generator's internals.
+ */
+export { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
+
 export { buildDocument } from './document.js';
 export type { DocumentInfo, OpenApiVersion } from './document.js';
 
