@@ -1,7 +1,14 @@
 import { writeFile, mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import type { SdkConfig } from './config.js';
-import { toZod, type JsonSchema, type SchemaContext } from './jsonSchemaToZod.js';
+import {
+  SharedSchemas,
+  formatNote,
+  toZod,
+  type ConversionNote,
+  type JsonSchema,
+  type SchemaContext,
+} from './jsonSchemaToZod.js';
 import { RUNTIME_SOURCE } from './sdkRuntime.js';
 
 const HTTP_METHODS = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options'];
@@ -18,9 +25,21 @@ const BANNER = [
   '',
 ].join('\n');
 
+/** Suffix of the generated sibling that returns status + headers + data. */
+const RAW_SUFFIX = 'WithResponse';
+
+const SHARED_HEADER = [
+  '// ── Shared schemas ──────────────────────────────────────────────────────────',
+  '// Schemas reached by $ref keep their component name. A shape that is repeated',
+  '// but unnamed gets a `Shared<hash>` name derived from the shape itself (so it',
+  "// is stable across runs) — tag it with `.openapi('Name')` in your route",
+  '// schemas to get a readable name here instead.',
+];
+
 /** Members of `BaseClient` that an operationId would shadow on the client class. */
 const RESERVED_METHOD_NAMES = new Set([
   'request',
+  'requestWithResponse',
   'baseUrl',
   'defaultTransport',
   'transports',
@@ -29,6 +48,7 @@ const RESERVED_METHOD_NAMES = new Set([
 ]);
 
 function assertEmittableOperationIds(ops: Operation[]): void {
+  const byMethodName = new Map<string, Operation>();
   for (const op of ops) {
     if (RESERVED_METHOD_NAMES.has(op.operationId)) {
       throw new Error(
@@ -37,12 +57,30 @@ function assertEmittableOperationIds(ops: Operation[]): void {
           `(e.g. "${op.method}${cap(op.operationId)}").`,
       );
     }
+    byMethodName.set(op.operationId, op);
+  }
+  // Each operation also gets a `…WithResponse` sibling; make sure that name is
+  // not another operation's own method.
+  for (const op of ops) {
+    const sibling = op.operationId + RAW_SUFFIX;
+    const clash = byMethodName.get(sibling);
+    if (clash) {
+      throw new Error(
+        `operationId "${clash.operationId}" (${clash.method.toUpperCase()} ${clash.path}) collides ` +
+          `with the "${sibling}" method generated for "${op.operationId}". Rename one of them.`,
+      );
+    }
   }
 }
 
 interface Param {
   name: string;
   required: boolean;
+  schema: JsonSchema;
+}
+
+interface ErrorResponse {
+  status: number;
   schema: JsonSchema;
 }
 
@@ -56,6 +94,10 @@ interface Operation {
   bodySchema?: JsonSchema;
   bodyRequired: boolean;
   responseSchema?: JsonSchema;
+  /** Non-2xx responses that declare a JSON schema, in ascending status order. */
+  errorResponses: ErrorResponse[];
+  /** A HEAD route declared a response body, which HEAD can never carry. */
+  droppedHeadBody: boolean;
 }
 
 interface OADoc {
@@ -65,6 +107,11 @@ interface OADoc {
 
 function cap(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** A single-quoted string literal, matching the style of the emitted code. */
+function q(value: string): string {
+  return `'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
 }
 
 function collectOperations(doc: OADoc): Operation[] {
@@ -91,6 +138,12 @@ function collectOperations(doc: OADoc): Operation[] {
         ? (body.content as Record<string, { schema?: JsonSchema }>)?.['application/json']?.schema
         : undefined;
 
+      // HEAD is defined to carry no body, so a declared response schema could
+      // never validate. Drop it (and say so in the output) rather than emit a
+      // client method that always throws.
+      const declaredResponse = pickResponseSchema(op);
+      const isHead = method === 'head';
+
       ops.push({
         operationId:
           (op.operationId as string | undefined) ??
@@ -102,7 +155,9 @@ function collectOperations(doc: OADoc): Operation[] {
         queryParams: allParams.filter((p) => p.in === 'query').map(toParam),
         bodySchema,
         bodyRequired: body ? Boolean(body.required) : false,
-        responseSchema: pickResponseSchema(op),
+        responseSchema: isHead ? undefined : declaredResponse,
+        errorResponses: pickErrorResponses(op),
+        droppedHeadBody: isHead && Boolean(declaredResponse),
       });
     }
   }
@@ -115,12 +170,34 @@ function pickResponseSchema(op: Record<string, unknown>): JsonSchema | undefined
     .filter((c) => /^2\d\d$/.test(c))
     .sort();
   for (const code of codes) {
-    const r = responses[code] as Record<string, unknown>;
-    const schema = (r.content as Record<string, { schema?: JsonSchema }>)?.['application/json']
-      ?.schema;
+    const schema = jsonSchemaOf(responses[code]);
     if (schema) return schema;
   }
   return undefined;
+}
+
+/**
+ * Every non-2xx response that declares a JSON schema. These become
+ * `…Error<status>` schemas and feed the `ApiErrorBodies` map, so a consumer
+ * narrowing with `isApiError(err, 404)` gets a typed `body` instead of
+ * `unknown`. Wildcard (`4XX`) and `default` keys are skipped — they have no
+ * single status to key the map on.
+ */
+function pickErrorResponses(op: Record<string, unknown>): ErrorResponse[] {
+  const responses = (op.responses as Record<string, unknown>) ?? {};
+  const out: ErrorResponse[] = [];
+  for (const code of Object.keys(responses).sort()) {
+    if (!/^\d{3}$/.test(code) || code.startsWith('2')) continue;
+    const schema = jsonSchemaOf(responses[code]);
+    if (schema) out.push({ status: Number(code), schema });
+  }
+  return out.sort((a, b) => a.status - b.status);
+}
+
+function jsonSchemaOf(response: unknown): JsonSchema | undefined {
+  const r = response as Record<string, unknown> | undefined;
+  return (r?.content as Record<string, { schema?: JsonSchema }> | undefined)?.['application/json']
+    ?.schema;
 }
 
 function paramsObjectSchema(params: Param[]): JsonSchema {
@@ -131,52 +208,115 @@ function paramsObjectSchema(params: Param[]): JsonSchema {
   };
 }
 
+/** The `schemas.ts` export names an operation contributes. */
+function exportNames(op: Operation): string[] {
+  const names = [`${op.operationId}Response`];
+  if (op.pathParams.length) names.push(`${op.operationId}Params`);
+  if (op.queryParams.length) names.push(`${op.operationId}Query`);
+  if (op.bodySchema) names.push(`${op.operationId}Body`);
+  for (const err of op.errorResponses) names.push(`${op.operationId}Error${err.status}`);
+  return names;
+}
+
 /** Generate the SDK files from the OpenAPI document. */
 export async function emitSdk(document: object, sdk: SdkConfig, cwd: string): Promise<string> {
   const doc = document as OADoc;
-  const ctx: SchemaContext = { components: doc.components?.schemas ?? {} };
   const ops = collectOperations(doc);
   assertEmittableOperationIds(ops);
   const className = sdk.className ?? 'ApiClient';
+  const validateRequests = sdk.validateRequests === true;
   const outDir = resolve(cwd, sdk.out ?? 'sdk');
 
-  const schemaLines: string[] = [BANNER, `import { z } from 'zod';`, ''];
-  const typeLines: string[] = [
+  // Reserve every per-operation export before planning, so a hoisted schema can
+  // never take a name the operation exports need.
+  const reserved = ['z', ...ops.flatMap(exportNames)];
+  const shared = new SharedSchemas(doc.components?.schemas ?? {}, reserved);
+  const ctx: SchemaContext = { components: doc.components?.schemas ?? {}, shared };
+
+  const roots: (JsonSchema | undefined)[] = [];
+  for (const op of ops) {
+    roots.push(op.responseSchema, op.bodySchema);
+    if (op.pathParams.length) roots.push(paramsObjectSchema(op.pathParams));
+    if (op.queryParams.length) roots.push(paramsObjectSchema(op.queryParams));
+    for (const err of op.errorResponses) roots.push(err.schema);
+  }
+  shared.plan(roots);
+
+  const operationBlocks: string[] = [];
+  const typeLines: string[] = [];
+  const typeNames = new Set<string>();
+
+  /** Emit `export const <name> = <zod>;` with any unsupported-keyword notes. */
+  const constFor = (name: string, schema: JsonSchema | undefined): string => {
+    const notes: ConversionNote[] = [];
+    const expr = schema ? toZod(schema, { ...ctx, notes }) : 'z.void()';
+    return [...notes.map(formatNote), `export const ${name} = ${expr};`].join('\n');
+  };
+  const typeFor = (name: string, constName: string): void => {
+    typeNames.add(name);
+    typeLines.push(`export type ${name} = z.infer<typeof s.${constName}>;`);
+  };
+
+  for (const op of ops) {
+    const id = op.operationId;
+    const block: string[] = [`// ${id} — ${op.method.toUpperCase()} ${op.path}`];
+    if (op.droppedHeadBody) {
+      block.push(
+        `// sdkgen: HEAD carries no response body, so the declared response schema`,
+        `// is not emitted or validated. Use ${id}${RAW_SUFFIX}() to read the headers.`,
+      );
+    }
+
+    block.push(constFor(`${id}Response`, op.responseSchema));
+    typeFor(`${cap(id)}Response`, `${id}Response`);
+
+    if (op.pathParams.length) {
+      block.push(constFor(`${id}Params`, paramsObjectSchema(op.pathParams)));
+      typeFor(`${cap(id)}Params`, `${id}Params`);
+    }
+    if (op.queryParams.length) {
+      block.push(constFor(`${id}Query`, paramsObjectSchema(op.queryParams)));
+      typeFor(`${cap(id)}Query`, `${id}Query`);
+    }
+    if (op.bodySchema) {
+      block.push(constFor(`${id}Body`, op.bodySchema));
+      typeFor(`${cap(id)}Body`, `${id}Body`);
+    }
+    for (const err of op.errorResponses) {
+      block.push(constFor(`${id}Error${err.status}`, err.schema));
+      typeFor(`${cap(id)}Error${err.status}`, `${id}Error${err.status}`);
+    }
+    operationBlocks.push(block.join('\n'));
+  }
+
+  // Shared consts are declared in dependency order and must precede the
+  // per-operation exports that reference them.
+  const sharedDecls = shared.declarations();
+  const sharedTypes = shared
+    .componentNames()
+    .filter((name) => !typeNames.has(name))
+    .map((name) => `export type ${name} = z.infer<typeof s.${name}>;`);
+
+  const schemasSrc = [
+    BANNER,
+    `import { z } from 'zod';`,
+    '',
+    ...(sharedDecls.length ? [...SHARED_HEADER, ''] : []),
+    ...interleave(sharedDecls),
+    ...interleave(operationBlocks),
+  ].join('\n');
+
+  const typesSrc = [
     BANNER,
     `import type { z } from 'zod';`,
     `import type * as s from './schemas.js';`,
     '',
-  ];
+    ...(sharedTypes.length ? [...sharedTypes, ''] : []),
+    ...typeLines,
+    '',
+  ].join('\n');
 
-  for (const op of ops) {
-    const id = op.operationId;
-    if (op.responseSchema) {
-      schemaLines.push(`export const ${id}Response = ${toZod(op.responseSchema, ctx)};`);
-    } else {
-      schemaLines.push(`export const ${id}Response = z.void();`);
-    }
-    typeLines.push(`export type ${cap(id)}Response = z.infer<typeof s.${id}Response>;`);
-
-    if (op.pathParams.length) {
-      schemaLines.push(
-        `export const ${id}Params = ${toZod(paramsObjectSchema(op.pathParams), ctx)};`,
-      );
-      typeLines.push(`export type ${cap(id)}Params = z.infer<typeof s.${id}Params>;`);
-    }
-    if (op.queryParams.length) {
-      schemaLines.push(
-        `export const ${id}Query = ${toZod(paramsObjectSchema(op.queryParams), ctx)};`,
-      );
-      typeLines.push(`export type ${cap(id)}Query = z.infer<typeof s.${id}Query>;`);
-    }
-    if (op.bodySchema) {
-      schemaLines.push(`export const ${id}Body = ${toZod(op.bodySchema, ctx)};`);
-      typeLines.push(`export type ${cap(id)}Body = z.infer<typeof s.${id}Body>;`);
-    }
-    schemaLines.push('');
-  }
-
-  const clientSrc = renderClient(ops, className);
+  const clientSrc = renderClient(ops, className, validateRequests);
   const runtimeSrc =
     BANNER + RUNTIME_SOURCE.replace('__DEFAULT_BASE_URL__', JSON.stringify(sdk.baseUrl ?? ''));
 
@@ -191,8 +331,8 @@ export async function emitSdk(document: object, sdk: SdkConfig, cwd: string): Pr
 
   await mkdir(outDir, { recursive: true });
   await Promise.all([
-    writeFile(resolve(outDir, 'schemas.ts'), schemaLines.join('\n'), 'utf8'),
-    writeFile(resolve(outDir, 'types.ts'), typeLines.join('\n') + '\n', 'utf8'),
+    writeFile(resolve(outDir, 'schemas.ts'), schemasSrc, 'utf8'),
+    writeFile(resolve(outDir, 'types.ts'), typesSrc, 'utf8'),
     writeFile(resolve(outDir, 'runtime.ts'), runtimeSrc, 'utf8'),
     writeFile(resolve(outDir, 'client.ts'), clientSrc, 'utf8'),
     writeFile(resolve(outDir, 'index.ts'), indexSrc, 'utf8'),
@@ -201,20 +341,67 @@ export async function emitSdk(document: object, sdk: SdkConfig, cwd: string): Pr
   return outDir;
 }
 
-function renderClient(ops: Operation[], className: string): string {
-  const methods = ops.map((op) => renderMethod(op)).join('\n\n');
-  return `${BANNER}import { BaseClient } from './runtime.js';
-import type { RequestOptions } from './runtime.js';
-import * as s from './schemas.js';
-import type * as t from './types.js';
-
-export class ${className} extends BaseClient {
-${methods}
-}
-`;
+/** Put a blank line after each block, so the file reads as separated sections. */
+function interleave(blocks: string[]): string[] {
+  return blocks.flatMap((b) => [b, '']);
 }
 
-function renderMethod(op: Operation): string {
+function renderClient(ops: Operation[], className: string, validateRequests: boolean): string {
+  const methods = ops.flatMap((op) => [
+    renderMethod(op, validateRequests, false),
+    renderMethod(op, validateRequests, true),
+  ]);
+
+  return [
+    BANNER,
+    `import { BaseClient } from './runtime.js';`,
+    `import type { RequestOptions } from './runtime.js';`,
+    `import * as s from './schemas.js';`,
+    `import type * as t from './types.js';`,
+    '',
+    renderErrorBodies(ops),
+    `export class ${className} extends BaseClient {`,
+    methods.join('\n\n'),
+    '}',
+    '',
+  ]
+    .filter((part) => part !== undefined)
+    .join('\n');
+}
+
+/**
+ * Teach `isApiError(err, status)` the body shapes the routes declare, by
+ * augmenting the runtime's `ApiErrorBodies` map. Two routes declaring different
+ * bodies for the same status produce a union — honest, and still far better than
+ * `unknown`. For a single operation's exact shape, use `t.<Op>Error<status>`.
+ */
+function renderErrorBodies(ops: Operation[]): string {
+  const byStatus = new Map<number, string[]>();
+  for (const op of ops) {
+    for (const err of op.errorResponses) {
+      const list = byStatus.get(err.status) ?? [];
+      const name = `t.${cap(op.operationId)}Error${err.status}`;
+      if (!list.includes(name)) list.push(name);
+      byStatus.set(err.status, list);
+    }
+  }
+  if (byStatus.size === 0) return '';
+  const entries = [...byStatus.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([status, names]) => `    ${status}: ${names.join(' | ')};`);
+  return [
+    '// Declared error bodies, keyed by status, so `isApiError(err, 404)` narrows',
+    '// `err.body` to the shape the route declares for that status.',
+    `declare module './runtime.js' {`,
+    `  interface ApiErrorBodies {`,
+    ...entries,
+    `  }`,
+    `}`,
+    '',
+  ].join('\n');
+}
+
+function renderMethod(op: Operation, validateRequests: boolean, raw: boolean): string {
   const id = op.operationId;
   const argFields: string[] = [];
   if (op.pathParams.length) argFields.push(`params: t.${cap(id)}Params`);
@@ -234,10 +421,45 @@ function renderMethod(op: Operation): string {
   const argType = hasArgs ? `{ ${argFields.join('; ')} }` : '';
   const argParam = hasArgs ? `args: ${argType}${argsRequired ? '' : ' = {}'}, ` : '';
 
-  const argRef = hasArgs ? 'args' : '{}';
-  const summary = op.summary ? `  /** ${op.summary} */\n` : '';
+  const name = raw ? id + RAW_SUFFIX : id;
+  const call = raw ? 'requestWithResponse' : 'request';
+  const doc = raw
+    ? `${op.summary ?? `${op.method.toUpperCase()} ${op.path}`} — returns { status, headers, data }.`
+    : op.summary;
+  const jsdoc = doc ? `  /** ${doc} */\n` : '';
 
-  return `${summary}  ${id}(${argParam}options?: RequestOptions) {
-    return this.request(${JSON.stringify(op.method.toUpperCase())}, ${JSON.stringify(op.path)}, ${argRef}, s.${id}Response, options);
-  }`;
+  // With client-side validation the parse happens in the method body, so the
+  // method is `async`: a bad call rejects like every other failure rather than
+  // throwing synchronously out of an otherwise promise-returning method.
+  const asyncPrefix = validateRequests && hasArgs ? 'async ' : '';
+
+  return (
+    `${jsdoc}  ${asyncPrefix}${name}(${argParam}options?: RequestOptions) {\n` +
+    `    return this.${call}(${q(op.method.toUpperCase())}, ${q(op.path)}, ` +
+    `${requestArgs(op, hasArgs, validateRequests)}, s.${id}Response, options);\n` +
+    `  }`
+  );
+}
+
+/**
+ * The `args` expression handed to the runtime. With `sdk.validateRequests`, the
+ * arguments go through the operation's own request schemas first, so a bad call
+ * throws a `ZodError` locally instead of coming back as a 400 — and any defaults
+ * or coercions the route declared are applied client-side.
+ */
+function requestArgs(op: Operation, hasArgs: boolean, validateRequests: boolean): string {
+  if (!hasArgs) return '{}';
+  if (!validateRequests) return 'args';
+  const id = op.operationId;
+  const parts: string[] = [];
+  if (op.pathParams.length) parts.push(`params: s.${id}Params.parse(args.params)`);
+  if (op.queryParams.length) parts.push(`query: s.${id}Query.parse(args.query ?? {})`);
+  if (op.bodySchema) {
+    parts.push(
+      op.bodyRequired
+        ? `body: s.${id}Body.parse(args.body)`
+        : `body: args.body === undefined ? undefined : s.${id}Body.parse(args.body)`,
+    );
+  }
+  return `{ ...args, ${parts.join(', ')} }`;
 }
