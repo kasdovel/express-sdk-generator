@@ -5,7 +5,11 @@ export type {
   TypedRequest,
   Valid,
   ResponseInput,
+  ResponsesInput,
 } from './createRoute.js';
+
+export { ResponseValidationError, UndeclaredResponseError, BODYLESS_STATUSES } from './respond.js';
+export type { TypedResponse, ResponsePayload } from './respond.js';
 
 export { router, ApiRouter } from './router.js';
 export type { ApiRouterOptions } from './router.js';
@@ -28,4 +32,11 @@ export type { ServeDocsOptions } from './serveDocs.js';
 
 export { toOpenApiPath, pathParamNames, joinPaths } from './path.js';
 
-export type { Method, RouteDef, RequestSchemas, ResponseDef } from './types.js';
+export type {
+  Method,
+  RouteDef,
+  RequestSchemas,
+  ResponseDef,
+  SecurityScheme,
+  SecurityRequirement,
+} from './types.js';
