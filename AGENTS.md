@@ -32,9 +32,14 @@ pnpm --filter @example/api exec sdkgen gen spec   # one artifact only
 pnpm --filter @example/api dev          # boot example on :3000, docs at /docs
 ```
 
-Turbo caches `build`/`test`/`typecheck`. After editing `core`, rebuild before the CLI or the
-example will use stale `dist/` — `pnpm build` handles the ordering (`core#build` before
-`cli#build`).
+Turbo caches `build`/`gen`/`test`/`typecheck`/`lint`. After editing `core`, rebuild before the
+CLI or the example will use stale `dist/` — `pnpm build` handles the ordering (`core#build`
+before `cli#build`). `test`/`typecheck`/`lint` depend on `gen`, so `pnpm test` on a clean
+clone regenerates the example's SDK before compiling against it.
+
+The `sdkgen` bin is a committed stub (`packages/cli/bin/sdkgen.mjs`) that forwards to
+`dist/bin.js`. It exists so package managers can always create the `node_modules/.bin` link at
+install time, when `dist/` has not been built yet.
 
 ## Architecture
 
@@ -74,6 +79,12 @@ Key invariants to preserve when editing:
 - **The Entry must be side-effect-free** (no `app.listen`, no DB connect). The CLI imports it
   in-process via jiti. The example's pattern: `src/openapi.ts` imports `./routes.js` (to
   populate the global registry) then re-exports `registry` from `@kasdovel/express-sdkgen-core`.
+- **Registration fails loudly on anything that would silently drift.** `Registry.add` rejects
+  a non-identifier `operationId` (it becomes an SDK method name), a duplicate `operationId`,
+  and a second operation on the same method + path (OpenAPI keys operations by path + method,
+  so it would overwrite the first). `registerRoute` rejects a `:param` in the path that
+  `request.params` does not declare — otherwise the spec carries no parameter and the SDK
+  requests `/users/undefined`.
 - **`createRoute` records the literal path; it can't see mount prefixes.** For a router
   mounted under a prefix, use the prefix-aware `router(prefix)` (`core/router.ts`, type
   `ApiRouter`) so the registry gets the full path while Express routes by the local path —

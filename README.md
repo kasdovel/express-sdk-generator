@@ -119,6 +119,11 @@ const api = new ApiClient({
 The default transport uses native `fetch`. Whatever the transport, the SDK owns the rest:
 it merges headers, turns a non-2xx `status` into `ApiError`, and always validates the response
 against the route's Zod schema — so server/SDK drift throws instead of silently mis-typing.
+A non-2xx body that isn't JSON (a proxy's HTML error page, say) still arrives as
+`ApiError(status, body)` with the raw text, never as a JSON parse error.
+
+Every emitted file starts with `/* eslint-disable */` and an `@generated` marker: the SDK is
+build output, meant to be regenerated and committed, not hand-edited.
 
 ### Nested routers
 
@@ -170,5 +175,8 @@ pnpm install
 pnpm build        # turbo: build core then cli
 pnpm test         # all package + example tests
 ```
+
+`pnpm test` works from a clean clone: turbo builds the packages and regenerates the example's
+SDK (`gen`) before anything compiles against it.
 
 See [`examples/api`](examples/api) for a complete working app and its e2e test.
