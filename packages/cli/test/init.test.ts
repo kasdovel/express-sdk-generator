@@ -38,6 +38,18 @@ describe('init', () => {
     expect(entry).toContain("export { registry } from '@kasdovel/express-sdkgen-core';");
   });
 
+  it('demonstrates the practices the docs recommend', async () => {
+    const dir = await emptyProject();
+    const result = await init({ cwd: dir });
+    const routes = await readFile(result.routesPath, 'utf8');
+
+    // The scaffold is the first sdkgen code anyone reads, so it has to model
+    // the recommended way rather than merely a working one: `res.valid` checks
+    // the payload against the declared schema, plain `res.json` does not.
+    expect(routes).toContain('res.valid(200,');
+    expect(routes).not.toContain('res.json(');
+  });
+
   it('takes the spec title and version from package.json when there is one', async () => {
     const dir = await emptyProject();
     await writeFile(

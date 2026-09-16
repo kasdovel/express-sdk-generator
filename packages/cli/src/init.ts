@@ -96,7 +96,11 @@ createRoute(routes, {
   // One declaration drives request validation, the spec, the docs and the SDK.
   responses: { 200: z.object({ ok: z.boolean(), uptime: z.number() }) },
   handler: (_req, res) => {
-    res.json({ ok: true, uptime: process.uptime() });
+    // res.valid checks the payload against the 200 schema above before sending,
+    // so a handler that drifts from its own contract fails your tests instead
+    // of a consumer's app. Plain res.json still works for anything you have not
+    // declared.
+    res.valid(200, { ok: true, uptime: process.uptime() });
   },
 });
 `;
